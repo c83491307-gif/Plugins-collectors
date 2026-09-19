@@ -17,6 +17,8 @@
     "verify:targeted": "npm run runtime-enhancements && npm run native-adapters && npm run durable-state && npm run connectors",
     "verify:stress": "npm run multi-account-auth && npm run account-grid-100",
     "provider-runtime": "node test/provider-runtime.mjs",
-    "verify:all": "npm run smoke && npm run provider-runtime && npm run verify:syntax"
+    "verify:all": "npm run smoke && npm run provider-stack && npm run verify:syntax",
+    "account-failover": "node test/account-failover.mjs",
+    "provider-stack": "npm run provider-runtime && npm run account-failover"
   }
 }
