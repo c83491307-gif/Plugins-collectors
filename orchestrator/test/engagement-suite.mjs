@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {createRuntime} from "../runtime.mjs";
 
-const r=createRuntime();
+const r=createRuntime({delivery:{perMinute:2,quietHours:[[0,1]]}});
 r.compliance.optIn("c1",["marketing"]);
 r.compliance.optOut("c2",["marketing"]);
 r.audience.import([
@@ -25,7 +25,6 @@ assert.deepEqual(sent,["c1"]);
 assert.equal(r.campaigns.status("cmp1").sent,1);
 
 r.automation.register({id:"lead-flow",steps:[{action:"tag"},{action:"assign"}]});
-const actions=[];
 const flowResult=await r.automation.run("lead-flow",{id:"c1"},{tag:async(s)=>({...s,tags:["qualified"]}),assign:async(s)=>({...s,owner:"sales"})});
 assert.deepEqual(flowResult,{id:"c1",tags:["qualified"],owner:"sales"});
 
@@ -41,4 +40,21 @@ assert.equal(summary.replyRate,1);
 
 r.audit.record("campaign.created","system",{campaignId:"cmp1"});
 assert.equal(r.audit.all().length,1);
+
+const governor=r.deliveryGovernor;
+assert.equal(governor.acquire(new Date("2026-09-20T10:00:00")).ok,true);
+assert.equal(governor.acquire(new Date("2026-09-20T10:00:10")).ok,true);
+assert.equal(governor.acquire(new Date("2026-09-20T10:00:20")).code,"RATE_LIMIT");
+assert.equal(governor.acquire(new Date("2026-09-20T00:30:00")).code,"QUIET_HOURS");
+
+const experiment=r.experiments.create({id:"subject-test",variants:["A","B"]});
+assert.equal(r.experiments.assign("subject-test","user-1"),r.experiments.assign("subject-test","user-1"));
+
+assert.equal(r.leadScoring.score({tags:["vip"]},{rules:[{when:c=>c.tags?.includes("vip"),points:40}]}),40);
+assert.equal(r.leadScoring.rank([{id:"a"},{id:"b",hot:true}],{rules:[{when:c=>c.hot,points:10}]})[0].id,"b");
+
+assert.equal(r.idempotency.has("x"),false);
+r.idempotency.set("x");
+assert.equal(r.idempotency.has("x"),true);
+
 console.log("ENGAGEMENT SUITE TEST: PASS");
