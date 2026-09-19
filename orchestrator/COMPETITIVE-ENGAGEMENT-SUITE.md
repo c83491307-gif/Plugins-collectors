@@ -84,3 +84,8 @@ The platform should support official WhatsApp Business Platform/Cloud API integr
 ## Product direction
 
 The goal is not to clone one vendor. The architecture should expose a modular capability layer so providers, channels and integrations can be swapped without rewriting campaigns, automation, analytics or compliance logic.
+
+
+## Implementation status
+
+The backlog layers are now represented by provider-neutral modules and runtime wiring: inbox/conversations, campaign planning, frequency caps, attribution, smart send-time scoring, graph automation, signed webhook gateway, connector registry, tenant RBAC, secret rotation boundary, durable retry/DLQ queue, provider health, knowledge retrieval, intent routing, model policy routing, CSV/JSON serialization, backup/restore, and usage budgets. External provider credentials and live provider calls remain deployment concerns; WhatsApp remains restricted to authorized official Business Platform integrations with opt-in/opt-out enforcement.
