@@ -4,7 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "smoke": "node test/smoke.mjs && node test/phase2.mjs && node test/connected-chain.mjs && node test/final-chain.mjs && node test/multi-account-auth.mjs && node test/account-grid-100.mjs && node test/runtime-enhancements.mjs",
+    "smoke": "node test/smoke.mjs && node test/phase2.mjs && node test/connected-chain.mjs && node test/final-chain.mjs && node test/multi-account-auth.mjs && node test/account-grid-100.mjs && node test/runtime-enhancements.mjs && node test/engagement-suite.mjs",
     "multi-account-auth": "node test/multi-account-auth.mjs",
     "account-grid-100": "node test/account-grid-100.mjs",
     "native-adapters": "node test/native-adapters.mjs",
@@ -14,7 +14,8 @@
     "connected-chain": "node test/native-adapters.mjs && node test/durable-state.mjs && node test/connectors.mjs && node test/multi-account-auth.mjs && node test/account-grid-100.mjs",
     "runtime-enhancements": "node test/runtime-enhancements.mjs",
     "verify:syntax": "find . -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check",
-    "verify:targeted": "npm run runtime-enhancements && npm run native-adapters && npm run durable-state && npm run connectors",
-    "verify:stress": "npm run multi-account-auth && npm run account-grid-100"
+    "verify:targeted": "npm run runtime-enhancements && npm run native-adapters && npm run durable-state && npm run connectors && node test/engagement-suite.mjs",
+    "verify:stress": "npm run multi-account-auth && npm run account-grid-100",
+    "verify:engagement": "node test/engagement-suite.mjs"
   }
 }
