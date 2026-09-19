@@ -11,9 +11,11 @@ import {PluginRegistry} from "./plugins/registry.mjs";
 import {SkillLoader} from "./skills/loader.mjs";
 import {CredentialPool} from "./credentials/key-pool.mjs";
 import {Planner} from "./agents/planner.mjs";
+import {ConnectionManager} from "./auth/connection-manager.mjs";
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
  const runtime={registry,policy,router,circuitBreaker:new CircuitBreaker(config.circuitBreaker),usage:new UsageLedger(),graph:new AgentGraph(config.graph),mcp:new MCPGateway(),plugins:new PluginRegistry(),skills:new SkillLoader(),credentials:new CredentialPool()};
+ runtime.connections=new ConnectionManager({masterKey:config.masterKey??process.env.APP_MASTER_KEY});
  runtime.mcpLifecycle=new MCPLifecycle(runtime.mcp); runtime.mcpAggregator=new MCPAggregator(runtime.mcp); runtime.planner=new Planner(runtime.router);
  return runtime;
 }
