@@ -21,3 +21,21 @@ Next phases:
 6. Plugin/skill loader.
 7. Multi-agent planner/reviewer.
 8. UI and end-to-end validation.
+
+## Multi-account authentication
+
+The connection layer supports 10+ independent credentials per provider. Each credential is encrypted at rest with AES-256-GCM and identified by a non-secret hash. Requests can lease a healthy credential and rotate after authentication, rate-limit, quota, or provider failures.
+
+### DeepSeek authentication
+
+DeepSeek API keys are not obtained through a standard OAuth authorization-code flow. The app therefore must not attempt to scrape a DeepSeek login session, browser cookies, or private tokens. The supported BYOK flow is:
+
+1. User clicks Connect DeepSeek.
+2. App opens the provider's API-key page/instructions.
+3. User creates/copies an API key and submits it to the app over HTTPS.
+4. Backend validates the key format, encrypts it, and stores only the encrypted secret plus metadata.
+5. Runtime leases one account for a request; on rate-limit/quota/auth/provider failure it rotates to another available account.
+
+Use APP_MASTER_KEY to unlock the vault. Never put provider keys in frontend JavaScript, URLs, query strings, Git, logs, analytics, or browser localStorage.
+
+The frontend helper is web/deepseek-connect.mjs. It intentionally does not automate provider login.
