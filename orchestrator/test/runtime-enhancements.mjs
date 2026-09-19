@@ -17,5 +17,22 @@ r.circuitBreaker.failure("nvidia-code");
 r.circuitBreaker.failure("nvidia-code");
 r.circuitBreaker.failure("nvidia-code");
 assert.equal(r.scheduler.plan({capabilities:["code"]}).candidates.includes("nvidia-code"),false);
+assert.equal(r.scheduler.plan({capabilities:["missing"]}).parallel,0);
+
+const calls=[];
+r.circuitBreaker.success("nvidia-code");
+const runResult=await r.scheduler.run({capabilities:["code"],maxAttempts:2},async (model)=>{
+  calls.push(model.id);
+  if(model.id==="nvidia-code") throw Object.assign(new Error("temporary"),{code:"TEMPORARY"});
+  return {ok:true,model:model.id};
+});
+assert.deepEqual(runResult,{ok:true,model:"openai-code"});
+assert.deepEqual(calls,["nvidia-code","openai-code"]);
+assert.equal(r.circuitBreaker.canTry("openai-code"),true);
+
+await assert.rejects(
+  () => r.scheduler.run({capabilities:["code"],maxAttempts:1},async()=>{throw Object.assign(new Error("down"),{code:"PROVIDER_DOWN"});}),
+  (error)=>error.code==="SCHEDULE_EXHAUSTED" && error.failures.length===1
+);
 
 console.log("RUNTIME ENHANCEMENTS TEST: PASS");
