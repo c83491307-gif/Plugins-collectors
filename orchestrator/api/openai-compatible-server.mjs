@@ -1,6 +1,8 @@
 import {createServer} from "node:http";
-import {completeDeepSeekConnection,beginDeepSeekConnection} from "../auth/deepseek-flow.mjs";\nimport {serveUI} from "../web/ui-handler.mjs";
-export function startServer({runtime,port=8787}){return createServer(async(req,res)=>{try{\nif(req.url?.startsWith("/ui")){if(await serveUI(req,res))return;}
+import {completeDeepSeekConnection,beginDeepSeekConnection} from "../auth/deepseek-flow.mjs";
+import {serveUI} from "../web/ui-handler.mjs";
+export function startServer({runtime,port=8787}){return createServer(async(req,res)=>{try{
+if(req.url?.startsWith("/ui")){if(await serveUI(req,res))return;}
 if(req.url==="/healthz"){return json(res,200,{status:"ok"});}
 if(req.url==="/v1/models"){return json(res,200,{object:"list",data:runtime.registry.models.map(m=>({id:m.id,object:"model",owned_by:m.provider}))});}
 if(req.url==="/connections/deepseek/start"){return json(res,200,beginDeepSeekConnection({returnTo:"/settings/connections"}));}
