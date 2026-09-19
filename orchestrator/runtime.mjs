@@ -23,6 +23,10 @@ import {AutomationEngine} from "./engagement/automation-engine.mjs";
 import {EngagementAnalytics} from "./engagement/analytics.mjs";
 import {OmnichannelRouter} from "./engagement/omnichannel-router.mjs";
 import {AuditLog} from "./engagement/audit-log.mjs";
+import {DeliveryGovernor} from "./engagement/delivery-governor.mjs";
+import {ExperimentEngine} from "./engagement/experiment-engine.mjs";
+import {LeadScoring} from "./engagement/lead-scoring.mjs";
+import {IdempotencyStore} from "./engagement/idempotency.mjs";
 
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
@@ -41,5 +45,9 @@ export function createRuntime(config={}){
  runtime.automation=new AutomationEngine({events});
  runtime.analytics=new EngagementAnalytics();
  runtime.channels=new OmnichannelRouter();
+ runtime.deliveryGovernor=new DeliveryGovernor(config.delivery);
+ runtime.experiments=new ExperimentEngine();
+ runtime.leadScoring=new LeadScoring();
+ runtime.idempotency=new IdempotencyStore();
  return runtime;
 }
