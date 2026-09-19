@@ -4,14 +4,41 @@ on:
     paths: ["orchestrator/**"]
   pull_request:
     paths: ["orchestrator/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: orchestrator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  matrix:
+    name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        node: [20, 22]
     defaults:
       run:
         working-directory: orchestrator
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: 20}
-      - run: npm run smoke
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: orchestrator/package.json
+      - name: Version
+        run: node --version && npm --version
+      - name: Syntax verification
+        run: npm run verify:syntax
+      - name: Targeted runtime verification
+        run: npm run verify:targeted
+      - name: Full smoke chain
+        run: npm run smoke
+      - name: Stress/account verification
+        run: npm run verify:stress
