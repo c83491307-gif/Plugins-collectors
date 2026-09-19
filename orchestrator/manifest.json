@@ -1,0 +1,15 @@
+{
+  "name": "creazzy-universal-orchestrator",
+  "version": "0.1.0",
+  "type": "orchestrator",
+  "description": "Provider-agnostic multi-model and multi-agent orchestration foundation",
+  "inspiration": [
+    {"project":"NEXUS","repository":"canoo/agent-nexus","license":"MIT"},
+    {"project":"OrkaJS","repository":"orka-ai/orkajs","license":"MIT"}
+  ],
+  "capabilities": ["chat","vision","audio","video","files","code","tools","json","mcp","memory"],
+  "providers": ["openai","anthropic","google","xai","nvidia","generic-openai-compatible","ollama"],
+  "failureModes": ["AUTH_ERROR","RATE_LIMIT","QUOTA_EXHAUSTED","TIMEOUT","UNSUPPORTED_CAPABILITY","INVALID_REQUEST","PROVIDER_DOWN","MODEL_ERROR"],
+  "routing": {"strategy":"capability-health-fallback","maxAttempts":4},
+  "security": {"secretsFromEnvironment":true,"neverLogCredentials":true}
+}
