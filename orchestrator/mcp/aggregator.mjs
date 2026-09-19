@@ -5,10 +5,11 @@ export class MCPAggregator {
     const out=[];
     for(const server of this.gateway.list()){
       for(const tool of server.tools ?? []){
+        const qualifiedName = server.name + "__" + tool.name;
         out.push({
-          name: server.name + "__" + tool.name,
-          server: server.name,
-          ...tool
+          ...tool,
+          name: qualifiedName,
+          server: server.name
         });
       }
     }
