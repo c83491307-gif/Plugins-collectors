@@ -1,7 +1,7 @@
 {
   "name":"creazzy-universal-orchestrator",
-  "version":"0.1.0",
+  "version":"0.2.0",
   "type":"module",
   "private":true,
-  "scripts":{"smoke":"node test/smoke.mjs"}
+  "scripts":{"smoke":"node test/smoke.mjs && node test/phase2.mjs"}
 }
