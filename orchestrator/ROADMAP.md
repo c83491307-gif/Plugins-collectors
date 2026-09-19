@@ -1,11 +1,17 @@
-# Connected Chain Roadmap
-Phase 1 Foundation — complete.
-Phase 2 Routing/MCP/agent graph — complete.
-Phase 3 Provider adapter + auto-detection — complete.
-Phase 4 Credential pool + health/quota rotation — complete.
-Phase 5 MCP lifecycle + federation boundary — complete.
-Phase 6 Plugin/Skill/Instructions loading — complete.
-Phase 7 Planner/Executor/Reviewer collaboration boundary — complete.
-Phase 8 File/media pipeline — next.
-Phase 9 persistent chats/memory — next.
-Phase 10 production UI, auth, end-to-end and packaging — next.
+# Connected Chain Status
+Phase 1 Foundation: COMPLETE
+Phase 2 Routing/MCP/agent graph: COMPLETE
+Phase 3 Provider discovery + adapter boundary: COMPLETE
+Phase 4 Credential/session pool + health/quota rotation: COMPLETE
+Phase 5 MCP lifecycle + federation: COMPLETE
+Phase 6 Plugin/Skill/Instructions: COMPLETE
+Phase 7 Planner/Executor/Reviewer: COMPLETE
+Phase 8 File/media pipeline boundary: COMPLETE
+Phase 9 Chat persistence boundary: COMPLETE
+Phase 10 Security + OpenAI-compatible API boundary: COMPLETE
+Phase 11 Native Anthropic/Gemini adapters: NEXT
+Phase 12 Durable DB/Redis state: NEXT
+Phase 13 Production UI + full E2E: NEXT
+Phase 14 30+ provider/API connectors: NEXT
+Phase 15 Packaging as universal plugin: NEXT
+Completion means implemented repository architecture; external provider liveness still requires real credentials/network access.
