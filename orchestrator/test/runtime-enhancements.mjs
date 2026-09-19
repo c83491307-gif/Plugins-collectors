@@ -13,6 +13,15 @@ const k1=r.contextCache.set({system:"x",messages:[{role:"user",content:"hello"}]
 assert.deepEqual(r.contextCache.get({messages:[{content:"hello",role:"user"}],system:"x"}),{tokens:12});
 assert.equal(typeof k1,"string");
 
+const lru=new (r.contextCache.constructor)({maxEntries:2,ttlMs:60_000});
+lru.set({id:1},"one");
+lru.set({id:2},"two");
+assert.equal(lru.get({id:1}),"one");
+lru.set({id:3},"three");
+assert.equal(lru.get({id:1}),"one");
+assert.equal(lru.get({id:2}),undefined);
+assert.equal(lru.get({id:3}),"three");
+
 r.circuitBreaker.failure("nvidia-code");
 r.circuitBreaker.failure("nvidia-code");
 r.circuitBreaker.failure("nvidia-code");
