@@ -10,7 +10,7 @@ r.credentials.add("nvidia","test-secret-123",{label:"test"});
 const lease=r.credentials.lease("nvidia");assert.equal(lease.secret,"test-secret-123");lease.report(false,"RATE_LIMIT");
 r.plugins.install({id:"p1",name:"Test Plugin",version:"1.0.0",type:"skill",capabilities:["search"],instructions:"x"});
 r.skills.register({id:"s1",name:"Test Skill",instructions:"Be precise."});
-assert.match(r.skills.compose(["s1"]),"Be precise");
+assert.match(r.skills.compose(["s1"]),/Be precise/);
 r.mcpLifecycle.register({name:"mcp-test",capabilities:["search"],tools:[{name:"lookup"}]});
 assert.equal(r.mcpAggregator.resolve(["mcp-test__lookup"]).length,1);
 const plan=r.planner.plan({taskClass:"code",capabilities:["code"]});assert.equal(plan.steps.length,2);
