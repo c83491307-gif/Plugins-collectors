@@ -1,0 +1,11 @@
+import {createHash,createCipheriv,createDecipheriv,randomBytes} from "node:crypto";
+const b64=b=>b.toString("base64url"); const ub=s=>Buffer.from(s,"base64url");
+function keyFrom(secret){return createHash("sha256").update(secret).digest();}
+export class ConnectionManager{
+  constructor({masterKey=process.env.APP_MASTER_KEY}={}){if(!masterKey)throw new Error("APP_MASTER_KEY_REQUIRED");this.key=keyFrom(masterKey);this.items=new Map();}
+  add({provider,secret,label="",accountId=""}){if(!provider||!secret)throw new Error("CONNECTION_REQUIRED");const id=createHash("sha256").update(provider+"\0"+secret).digest("hex").slice(0,16);const iv=randomBytes(12),tag=Buffer.alloc(0),c=createCipheriv("aes-256-gcm",this.key,iv);const ciphertext=Buffer.concat([c.update(secret,"utf8"),c.final()]);const auth=c.getAuthTag();this.items.set(id,{id,provider,label,accountId,status:"available",createdAt:Date.now(),ciphertext:b64(ciphertext),iv:b64(iv),tag:b64(auth),fails:0,until:0});return id;}
+  list(provider){return [...this.items.values()].filter(x=>!provider||x.provider===provider).map(({ciphertext,iv,tag,...x})=>({...x,secret:"stored"}));}
+  secret(id){const x=this.items.get(id);if(!x)throw new Error("CONNECTION_NOT_FOUND");const d=createDecipheriv("aes-256-gcm",this.key,ub(x.iv));d.setAuthTag(ub(x.tag));return Buffer.concat([d.update(ub(x.ciphertext)),d.final()]).toString("utf8");}
+  lease(provider){const xs=[...this.items.values()].filter(x=>x.provider===provider&&x.status==="available"&&x.until<=Date.now());if(!xs.length)throw Object.assign(new Error("NO_AVAILABLE_CONNECTION"),{code:"NO_CREDENTIAL"});xs.sort((a,b)=>a.until-b.until||a.createdAt-b.createdAt);const x=xs[0];x.lastUsedAt=Date.now();return {id:x.id,secret:this.secret(x.id),report:(ok,code)=>this.report(x.id,ok,code)};}
+  report(id,ok,code){const x=this.items.get(id);if(!x)return;if(ok){x.fails=0;x.status="available";x.until=0;return;}x.fails++;if(code==="AUTH_ERROR"||code===401||code==="insufficient_quota"){x.status="disabled";return;}x.status="cooling";x.until=Date.now()+Math.min(300000,1000*2**Math.min(x.fails,8));}
+}
