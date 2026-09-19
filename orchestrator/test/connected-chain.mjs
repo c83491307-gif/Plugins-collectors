@@ -12,6 +12,6 @@ r.plugins.install({id:"p1",name:"Test Plugin",version:"1.0.0",type:"skill",capab
 r.skills.register({id:"s1",name:"Test Skill",instructions:"Be precise."});
 assert.match(r.skills.compose(["s1"]),/Be precise/);
 r.mcpLifecycle.register({name:"mcp-test",capabilities:["search"],tools:[{name:"lookup"}]});
-assert.equal(r.mcpAggregator.resolve(["mcp-test__lookup"]).length,1);
+assert.equal(r.mcpAggregator.resolve(["mcp-test__lookup"]).length,1);assert.equal(r.mcpAggregator.resolve(["lookup"]).length,1);assert.equal(r.mcpAggregator.resolve(["mcp-test"]).length,1);
 const plan=r.planner.plan({taskClass:"code",capabilities:["code"]});assert.equal(plan.steps.length,2);
 console.log("CONNECTED CHAIN TEST: PASS");
