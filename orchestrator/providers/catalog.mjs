@@ -8,7 +8,9 @@ export const PROVIDER_CATALOG={
   deepseek:{family:"openai-compatible",env:"DEEPSEEK_API_KEY"},
   mistral:{family:"openai-compatible",env:"MISTRAL_API_KEY"},
   openrouter:{family:"openai-compatible",env:"OPENROUTER_API_KEY"},
-  ollama:{family:"openai-compatible",env:null}
+  ollama:{family:"openai-compatible",env:null},
+  cohere:{family:"openai-compatible",env:"COHERE_API_KEY"},
+  together:{family:"openai-compatible",env:"TOGETHER_API_KEY"}
 };
 export function detectProvider({baseUrl="",model=""}={}){
   const s=(baseUrl+" "+model).toLowerCase();
