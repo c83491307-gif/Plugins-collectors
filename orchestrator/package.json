@@ -1,1 +1,1 @@
-{"name":"creazzy-universal-orchestrator","version":"0.3.0","type":"module","private":true,"scripts":{"smoke":"node test/smoke.mjs && node test/phase2.mjs && node test/connected-chain.mjs"}}
+{"name":"creazzy-universal-orchestrator","version":"0.4.0","type":"module","private":true,"scripts":{"smoke":"node test/smoke.mjs && node test/phase2.mjs && node test/connected-chain.mjs && node test/final-chain.mjs"}}
