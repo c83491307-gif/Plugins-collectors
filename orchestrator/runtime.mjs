@@ -14,14 +14,32 @@ import {Planner} from "./agents/planner.mjs";
 import {ConnectionManager} from "./auth/connection-manager.mjs";
 import {AdaptiveScheduler} from "./core/adaptive-scheduler.mjs";
 import {ContextCache} from "./core/context-cache.mjs";
+import {EventBus} from "./observability/events.mjs";
+import {ComplianceGate} from "./engagement/compliance-gate.mjs";
+import {AudienceEngine} from "./engagement/audience.mjs";
+import {TemplateRegistry} from "./engagement/template-registry.mjs";
+import {CampaignEngine} from "./engagement/campaign-engine.mjs";
+import {AutomationEngine} from "./engagement/automation-engine.mjs";
+import {EngagementAnalytics} from "./engagement/analytics.mjs";
+import {OmnichannelRouter} from "./engagement/omnichannel-router.mjs";
+import {AuditLog} from "./engagement/audit-log.mjs";
+
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
- const runtime={registry,policy,router,usage:new UsageLedger(),graph:new AgentGraph(config.graph),mcp:new MCPGateway(),plugins:new PluginRegistry(),skills:new SkillLoader(),credentials:new CredentialPool()};
+ const events=new EventBus();
+ const audience=new AudienceEngine();
+ const compliance=new ComplianceGate(config.compliance);
+ const templates=new TemplateRegistry();
+ const runtime={registry,policy,router,usage:new UsageLedger(),graph:new AgentGraph(config.graph),mcp:new MCPGateway(),plugins:new PluginRegistry(),skills:new SkillLoader(),credentials:new CredentialPool(),events,audience,compliance,templates,audit:new AuditLog()};
  runtime.connections=(config.masterKey??process.env.APP_MASTER_KEY)?new ConnectionManager({masterKey:config.masterKey??process.env.APP_MASTER_KEY}):null;
  runtime.circuitBreaker=new CircuitBreaker(config.circuitBreaker);
  router.circuitBreaker=runtime.circuitBreaker;
  runtime.contextCache=new ContextCache(config.cache);
  runtime.scheduler=new AdaptiveScheduler({registry,policy,circuitBreaker:runtime.circuitBreaker});
  runtime.mcpLifecycle=new MCPLifecycle(runtime.mcp); runtime.mcpAggregator=new MCPAggregator(runtime.mcp); runtime.planner=new Planner(runtime.router);
+ runtime.campaigns=new CampaignEngine({compliance,audience,templates,events});
+ runtime.automation=new AutomationEngine({events});
+ runtime.analytics=new EngagementAnalytics();
+ runtime.channels=new OmnichannelRouter();
  return runtime;
 }
