@@ -15,6 +15,8 @@
     "runtime-enhancements": "node test/runtime-enhancements.mjs",
     "verify:syntax": "find . -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check",
     "verify:targeted": "npm run runtime-enhancements && npm run native-adapters && npm run durable-state && npm run connectors",
-    "verify:stress": "npm run multi-account-auth && npm run account-grid-100"
+    "verify:stress": "npm run multi-account-auth && npm run account-grid-100",
+    "provider-runtime": "node test/provider-runtime.mjs",
+    "verify:all": "npm run smoke && npm run provider-runtime && npm run verify:syntax"
   }
 }
