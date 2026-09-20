@@ -1,0 +1,36 @@
+name: Build Project ZIP
+
+on:
+  push:
+    branches:
+      - tmp/create-project-zip-20260920
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Package source
+        run: |
+          zip -r creazzy-universal-ai-project.zip . \
+            -x ".git/*" \
+            -x "node_modules/*" \
+            -x "**/node_modules/*" \
+            -x "*.log" \
+            -x "**/*.log" \
+            -x ".env" \
+            -x ".env.*" \
+            -x "**/.env" \
+            -x "**/.env.*"
+
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: creazzy-universal-ai-project
+          path: creazzy-universal-ai-project.zip
+          retention-days: 1
