@@ -47,7 +47,7 @@ class ArActivity : Activity(), BarcodeArListener {
     override fun onPause(){if(::arView.isInitialized)arView.onPause();super.onPause()}
     override fun onDestroy(){if(::arView.isInitialized)arView.onDestroy();barcodeAr.removeListener(this);super.onDestroy()}
     override fun onSessionUpdated(barcodeAr:BarcodeAr,session:BarcodeArSession,frameData:FrameData){
-        val added:List<TrackedBarcode>=session.addedTrackedBarcodes
+        val added: List<TrackedBarcode> = session.addedTrackedBarcodes
         val text=added.mapNotNull{it.barcode.data}.distinct()
         synchronized(values){values.addAll(text)}
     }
