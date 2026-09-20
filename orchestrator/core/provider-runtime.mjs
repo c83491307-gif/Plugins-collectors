@@ -8,6 +8,8 @@ const DEFAULTS={
   google:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",capabilities:["chat","code","vision"]}
 };
 
+const RETRYABLE=new Set(["AUTH_ERROR","RATE_LIMIT","PROVIDER_DOWN","QUOTA_EXHAUSTED","QUOTA_EXCEEDED","PROVIDER_TIMEOUT"]);
+
 export class ProviderRuntime {
   constructor({registry,connections,usage}={}){this.registry=registry;this.connections=connections;this.usage=usage;this.adapters=new Map();}
   configure(provider,config={}){
@@ -24,13 +26,17 @@ export class ProviderRuntime {
   async syncProvider(provider,config={}){
     if(!this.connections)throw Object.assign(new Error("APP_MASTER_KEY_REQUIRED"),{code:"CONFIGURATION_ERROR"});
     const adapter=this.ensureAdapter(provider,config), accounts=this.connections.list(provider), seen=new Set(), out=[];
-    for(const account of accounts){
+    for(let i=0;i<accounts.length;i++){
       let lease;
       try{lease=this.connections.lease(provider);}catch{break;}
+      const account=accounts.find(x=>x.id===lease.id);
       try{
         const models=await adapter.listModels(lease.secret);
         lease.report(true);
-        for(const m of models)if(!seen.has(m.id)){seen.add(m.id);out.push(this.registry.register({...m,adapter,accountId:account.accountId||account.id}));}
+        for(const m of models)if(!seen.has(m.id)){
+          seen.add(m.id);
+          out.push(this.registry.register({...m,adapter,accountId:account?.accountId||account?.id||""}));
+        }
       }catch(e){lease.report(false,e.code??e.status);}
     }
     return out;
@@ -38,16 +44,23 @@ export class ProviderRuntime {
   async invoke(model,payload){
     if(!this.connections)throw Object.assign(new Error("APP_MASTER_KEY_REQUIRED"),{code:"CONFIGURATION_ERROR"});
     const adapter=model.adapter??this.ensureAdapter(model.provider);
-    const lease=this.connections.lease(model.provider);
-    try{
-      const result=await adapter.invoke(payload,lease.secret);
-      lease.report(true);
-      this.usage?.record({provider:model.provider,model:model.id,ok:true,tokens:result?.usage?.total_tokens??0});
-      return result;
-    }catch(e){
-      lease.report(false,e.code??e.status);
-      this.usage?.record({provider:model.provider,model:model.id,ok:false,error:e.code??"MODEL_ERROR"});
-      throw e;
+    const maxAttempts=Math.max(1,this.connections.list(model.provider).length);
+    let last;
+    for(let attempt=0;attempt<maxAttempts;attempt++){
+      let lease;
+      try{lease=this.connections.lease(model.provider);}catch(e){last=e;break;}
+      try{
+        const result=await adapter.invoke(payload,lease.secret);
+        lease.report(true);
+        this.usage?.record({provider:model.provider,model:model.id,ok:true,tokens:result?.usage?.total_tokens??0});
+        return result;
+      }catch(e){
+        last=e;
+        lease.report(false,e.code??e.status);
+        this.usage?.record({provider:model.provider,model:model.id,ok:false,error:e.code??"MODEL_ERROR"});
+        if(!RETRYABLE.has(e.code??e.status))throw e;
+      }
     }
+    throw last??Object.assign(new Error("NO_AVAILABLE_CONNECTION"),{code:"NO_AVAILABLE_CONNECTION"});
   }
 }
