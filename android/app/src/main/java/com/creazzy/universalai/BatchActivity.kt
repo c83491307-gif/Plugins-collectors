@@ -16,7 +16,7 @@ import com.scandit.datacapture.core.ui.DataCaptureView
 
 class BatchActivity : Activity(), BarcodeBatchListener {
     private lateinit var contextCapture: DataCaptureContext
-    private lateinit var camera: Camera
+    private var camera: Camera? = null
     private lateinit var batch: BarcodeBatch
     private var values = linkedSetOf<String>()
 
@@ -39,8 +39,8 @@ class BatchActivity : Activity(), BarcodeBatchListener {
         camera = Camera.getDefaultCamera(BarcodeBatch.createRecommendedCameraSettings())
         contextCapture.setFrameSource(camera)
     }
-    override fun onResume(){super.onResume();batch.isEnabled=true;camera.switchToDesiredState(FrameSourceState.ON)}
-    override fun onPause(){batch.isEnabled=false;camera.switchToDesiredState(FrameSourceState.OFF);super.onPause()}
+    override fun onResume(){super.onResume();batch.isEnabled=true;camera?.switchToDesiredState(FrameSourceState.ON)}
+    override fun onPause(){batch.isEnabled=false;camera?.switchToDesiredState(FrameSourceState.OFF);super.onPause()}
     override fun onDestroy(){batch.removeListener(this);contextCapture.removeCurrentMode();super.onDestroy()}
     override fun onSessionUpdated(mode: BarcodeBatch, session: BarcodeBatchSession, data: FrameData){
         val added=session.addedTrackedBarcodes.mapNotNull(TrackedBarcode::barcode).mapNotNull{it.data}
