@@ -1,0 +1,65 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android platform and build tools
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        working-directory: android
+        env:
+          CREAZZY_BASE_URL: ${{ vars.CREAZZY_BASE_URL }}
+          SCANDIT_LICENSE_KEY: ${{ secrets.SCANDIT_LICENSE_KEY }}
+        run: |
+          args=()
+          if [ -n "$CREAZZY_BASE_URL" ]; then args+=("-PCREAZZY_BASE_URL=$CREAZZY_BASE_URL"); fi
+          if [ -n "$SCANDIT_LICENSE_KEY" ]; then args+=("-PSCANDIT_LICENSE_KEY=$SCANDIT_LICENSE_KEY"); fi
+          gradle :app:assembleDebug "${args[@]}"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: creazzy-universal-ai-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
