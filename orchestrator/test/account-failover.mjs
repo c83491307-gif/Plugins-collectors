@@ -16,7 +16,7 @@ try{
   const first=await r.providers.invoke(model,{model:"deepseek-test",messages:[{role:"user",content:"ping"}]});
   assert.equal(first.choices[0].message.content,"ok");
   assert.equal(calls,2);
-  const accounts=r.connections.list("deepseek");
-  assert.equal(accounts.length,2);
+  assert.equal(r.usage.records.length,2);
+  assert.equal(r.connections.list("deepseek").length,2);
 }finally{globalThis.fetch=originalFetch;}
 console.log("ACCOUNT FAILOVER TEST: PASS");
