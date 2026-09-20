@@ -10,7 +10,7 @@ on:
 jobs:
   verify-cloudflare-worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +25,14 @@ jobs:
 
       - name: Worker smoke
         run: npm --prefix cloudflare test
+
+      - name: UI asset sanity
+        run: |
+          test -s orchestrator/web/ui/index.html
+          test -s orchestrator/web/ui/app.js
+          test -s orchestrator/web/ui/style.css
+          grep -q "chatForm" orchestrator/web/ui/index.html
+          grep -q "v1/chat/completions" orchestrator/web/ui/app.js
 
       - name: Wrangler dry run
         run: npx --yes wrangler@latest deploy --dry-run
