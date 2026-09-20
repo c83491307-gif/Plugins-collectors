@@ -1,11 +1,11 @@
-name: Orchestrator Smoke Test
+name: Orchestrator Verification
 on:
   push:
     paths: ["orchestrator/**"]
   pull_request:
     paths: ["orchestrator/**"]
 jobs:
-  smoke:
+  verify:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -15,4 +15,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: orchestrator/package.json
+      - run: npm run verify:syntax
       - run: npm run smoke
+      - run: npm run provider-stack
+      - run: npm run verify:targeted
+      - run: npm run verify:stress
