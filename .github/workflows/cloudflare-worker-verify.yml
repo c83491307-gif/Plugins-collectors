@@ -1,0 +1,30 @@
+name: Cloudflare Worker Verification
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  pull_request:
+
+jobs:
+  verify-cloudflare-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Syntax check
+        run: node --check cloudflare/worker.mjs
+
+      - name: Worker smoke
+        run: npm --prefix cloudflare test
+
+      - name: Wrangler dry run
+        run: npx --yes wrangler@latest deploy --dry-run
