@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
         val scan = Button(this).apply {
             text = "Scan"
             setOnClickListener {
-                scannerLauncher.launch(Intent(this@MainActivity, ScannerActivity::class.java))
+                scannerLauncher.launch(Intent(this@MainActivity, ScannerHubActivity::class.java))
             }
         }
         toolbar.addView(title, LinearLayout.LayoutParams(0, -2, 1f))
