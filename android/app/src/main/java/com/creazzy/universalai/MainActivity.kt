@@ -67,10 +67,10 @@ class MainActivity : ComponentActivity() {
         root.addView(toolbar)
 
         webView = WebView(this).apply {
-            settings.javaScriptEnabled = true
-            settings.domStorageEnabled = true
-            settings.allowFileAccess = false
-            settings.allowContentAccess = false
+            this.settings.javaScriptEnabled = true
+            this.settings.domStorageEnabled = true
+            this.settings.allowFileAccess = false
+            this.settings.allowContentAccess = false
             webViewClient = WebViewClient()
             webChromeClient = WebChromeClient()
         }
