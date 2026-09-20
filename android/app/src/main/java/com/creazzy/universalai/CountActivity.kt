@@ -19,7 +19,7 @@ import com.scandit.datacapture.core.source.FrameSourceState
 
 class CountActivity : Activity(), BarcodeCountListener, BarcodeCountViewUiListener {
     private lateinit var contextCapture: DataCaptureContext
-    private lateinit var camera: Camera
+    private var camera: Camera? = null
     private lateinit var count: BarcodeCount
     private lateinit var view: BarcodeCountView
     private var values: List<String> = emptyList()
@@ -47,8 +47,8 @@ class CountActivity : Activity(), BarcodeCountListener, BarcodeCountViewUiListen
         view.uiListener = this
     }
 
-    override fun onResume() { super.onResume(); camera.switchToDesiredState(FrameSourceState.ON) }
-    override fun onPause() { camera.switchToDesiredState(FrameSourceState.OFF); super.onPause() }
+    override fun onResume() { super.onResume(); camera?.switchToDesiredState(FrameSourceState.ON) }
+    override fun onPause() { camera?.switchToDesiredState(FrameSourceState.OFF); super.onPause() }
     override fun onDestroy() { count.removeListener(this); contextCapture.removeCurrentMode(); super.onDestroy() }
 
     override fun onScan(barcodeCount: BarcodeCount, session: BarcodeCountSession, data: FrameData) {
