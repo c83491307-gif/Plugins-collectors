@@ -38,6 +38,8 @@ jobs:
         run: npm run verify:syntax
       - name: Targeted runtime verification
         run: npm run verify:targeted
+      - name: Provider runtime verification
+        run: npm run provider-stack
       - name: Full smoke chain
         run: npm run smoke
       - name: Stress/account verification

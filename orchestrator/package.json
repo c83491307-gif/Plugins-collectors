@@ -19,8 +19,9 @@
     "verify:engagement": "node test/engagement-suite.mjs",
     "platform-layers": "node test/platform-layers.mjs",
     "provider-runtime": "node test/provider-runtime.mjs",
+    "provider-sync-rotation": "node test/provider-sync-rotation.mjs",
     "account-failover": "node test/account-failover.mjs",
-    "provider-stack": "npm run provider-runtime && npm run account-failover",
+    "provider-stack": "npm run provider-runtime && npm run provider-sync-rotation && npm run account-failover",
     "verify:all": "npm run verify:syntax && npm run smoke && npm run provider-stack && npm run verify:targeted && npm run verify:stress"
   }
 }
