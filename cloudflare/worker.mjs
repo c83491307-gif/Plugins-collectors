@@ -115,7 +115,7 @@ function errorResponse(error) {
 
 function getSecretNames(env, prefix) {
   const names = [prefix];
-  for (let index = 1; index <= 10; index += 1) names.push(`${prefix}_${index}`);
+  for (let index = 2; index <= 10; index += 1) names.push(`${prefix}_${index}`);
   return names;
 }
 
