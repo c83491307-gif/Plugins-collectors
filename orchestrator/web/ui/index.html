@@ -15,6 +15,7 @@
       <button class="nav active" data-view="chat">Chat workspace</button>
       <button class="nav" data-view="providers">Providers & accounts</button>
       <button class="nav" data-view="models">Model registry</button>
+      <button class="nav" data-view="scanner">Scanner Hub</button>
       <button class="nav" data-view="system">Runtime & health</button>
     </nav>
     <div class="side-foot"><span id="connectionDot" class="dot"></span><span id="connectionText">Checking runtime…</span></div>
@@ -61,6 +62,15 @@
       <div class="panel"><div id="modelList" class="model-table"></div></div>
     </section>
 
+    <section id="view-scanner" class="view">
+      <div class="section-intro"><div><span class="eyebrow">MOBILE DATA CAPTURE</span><h2>Scanner Hub</h2><p>Native Android scanner events arrive here through the Creazzy bridge. Licensed Scandit modes can share the same event contract.</p></div></div>
+      <div class="scanner-grid">
+        <article class="panel"><h3>Capabilities</h3><div id="scannerCapabilities" class="capability-list"></div></article>
+        <article class="panel"><h3>Last capture</h3><div id="lastScan" class="last-scan"><span class="muted">Waiting for a scan…</span></div></article>
+      </div>
+      <div class="panel"><div class="panel-head"><div><h3>Recent captures</h3><p>Local-first event history. Values are never sent to providers.</p></div><button id="clearScans" class="button ghost">Clear</button></div><div id="scanHistory" class="activity"></div></div>
+    </section>
+
     <section id="view-system" class="view">
       <div class="section-intro"><div><span class="eyebrow">OPERATIONS</span><h2>Runtime & health</h2><p>Inspect the actual Worker/API state and recent provider discovery results.</p></div></div>
       <div class="system-grid">
@@ -74,6 +84,7 @@
 
 <div id="accessModal" class="modal hidden"><div class="modal-card"><div class="panel-head"><div><span class="eyebrow">LOCAL SESSION</span><h2>API access</h2></div><button id="closeModal" class="button ghost">Close</button></div><p>If <code>CREAZZY_API_TOKEN</code> is configured on the Worker, paste it here. It is stored only in this browser's local storage.</p><input id="apiToken" type="password" autocomplete="off" placeholder="Bearer token"><div class="modal-actions"><button id="saveToken" class="button primary">Save access token</button><button id="removeToken" class="button ghost">Remove</button></div></div></div>
 <div id="toast" class="toast"></div>
+<script src="/ui/scanner.js"></script>
 <script src="/ui/app.js"></script>
 </body>
 </html>
