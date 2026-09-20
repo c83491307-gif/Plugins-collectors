@@ -35,3 +35,7 @@ The project uses Scandit Data Capture SDK Android 8.6.0 for Barcode Capture. A v
 ## Production requirements
 
 Set the actual Cloudflare Worker URL before distribution. Configure the Scandit license key through the CI secret `SCANDIT_LICENSE_KEY` or a local Gradle property. Never commit provider keys, `CREAZZY_API_TOKEN`, `APP_MASTER_KEY`, or the Scandit license key.
+
+
+## Full Scanner Hub
+The Android build now exposes Barcode Capture, SparkScan, MatrixScan Count, MatrixScan Batch, and MatrixScan AR through a native Scanner Hub. All Scandit modes are license-aware; no license key is committed to source. The web layer receives scanner events through the existing `creazzy-barcode` bridge.
