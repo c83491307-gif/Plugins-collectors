@@ -17,7 +17,7 @@ android {
         buildConfigField("String", "SCANDIT_LICENSE_KEY", "\"" + (project.findProperty("SCANDIT_LICENSE_KEY") ?: "") + "\"")
     }
 
-    buildFeatures { buildConfig = true }
+    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n\n    kotlinOptions {\n        jvmTarget = "17"\n    }\n\n    buildFeatures { buildConfig = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
