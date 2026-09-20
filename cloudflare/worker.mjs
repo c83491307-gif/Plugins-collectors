@@ -227,6 +227,31 @@ export default {
         return json({ status: 'ok', runtime: 'cloudflare-workers', fullStack: true });
       }
 
+      if (url.pathname === '/api/status' && request.method === 'GET') {
+        const authError = assertApiToken(request, env);
+        if (authError) return errorResponse(authError);
+        const runtime = createRuntime(env);
+        const sync = await syncConfiguredProviders(runtime);
+        const configured = Object.entries(PROVIDERS).map(([provider, definition]) => ({
+          provider,
+          configured: runtime.connections.list(provider).length > 0,
+          accounts: runtime.connections.list(provider).length,
+          models: runtime.registry.models.filter((model) => model.provider === provider).map((model) => model.id),
+          baseUrl: definition.baseUrl,
+          capabilities: definition.capabilities,
+        }));
+        return json({
+          status: 'ok',
+          runtime: 'cloudflare-workers',
+          fullStack: true,
+          configuredProviders: configured.filter((x) => x.configured).length,
+          totalAccounts: runtime.connections.list().length,
+          totalModels: runtime.registry.models.length,
+          providers: configured,
+          sync: sync.map((x) => ({ provider: x.provider, count: x.models?.length ?? 0, error: x.error ?? null })),
+        });
+      }
+
       if (url.pathname === '/v1/models' && request.method === 'GET') {
         const authError = assertApiToken(request, env);
         if (authError) return errorResponse(authError);
