@@ -4,6 +4,11 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application android:allowBackup="true" android:label="Creazzy Universal AI" android:theme="@style/Theme.Creazzy" android:usesCleartextTraffic="false">
+        <activity android:name=".ScannerHubActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".SparkScanActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".CountActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".BatchActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ArActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".ScannerActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
