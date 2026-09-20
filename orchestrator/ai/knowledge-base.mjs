@@ -1,0 +1,1 @@
+export class KnowledgeBase{constructor(){this.docs=new Map()}upsert(id,text,meta={}){this.docs.set(id,{id,text,meta});return id}search(query,limit=5){const q=query.toLowerCase().split(/\s+/).filter(Boolean);return[...this.docs.values()].map(d=>({...d,score:q.filter(w=>d.text.toLowerCase().includes(w)).length})).filter(x=>x.score).sort((a,b)=>b.score-a.score).slice(0,limit)}}

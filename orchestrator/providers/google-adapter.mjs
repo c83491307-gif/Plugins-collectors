@@ -3,6 +3,7 @@ export class GoogleAdapter {
     if (!apiKey) throw Object.assign(new Error("GEMINI_API_KEY_REQUIRED"),{code:"CONFIGURATION_ERROR"});
     this.apiKey=apiKey; this.baseUrl=baseUrl.replace(/\/$/,""); this.model=model; this.timeoutMs=timeoutMs;
   }
+  buildUrl(model=this.model){return this.baseUrl+"/models/"+encodeURIComponent(model)+":generateContent";}
   async invoke(request={}) {
     const controller=new AbortController(); const timer=setTimeout(()=>controller.abort(),this.timeoutMs);
     try {
@@ -10,8 +11,8 @@ export class GoogleAdapter {
       const system=(request.messages||[]).find(m=>m.role==="system");
       const body={contents,generationConfig:{temperature:request.temperature,maxOutputTokens:request.max_tokens||request.maxTokens}};
       if(system) body.systemInstruction={parts:[{text:typeof system.content==="string"?system.content:JSON.stringify(system.content)}]};
-      const url=this.baseUrl+"/models/"+encodeURIComponent(request.model||this.model)+":generateContent?key="+encodeURIComponent(this.apiKey);
-      const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),signal:controller.signal});
+      const url=this.buildUrl(request.model||this.model);
+      const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":this.apiKey},body:JSON.stringify(body),signal:controller.signal});
       const data=await r.json().catch(()=>({}));
       if(!r.ok) throw this.mapError(r.status,data);
       return data;

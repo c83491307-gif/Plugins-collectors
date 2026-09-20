@@ -1,0 +1,1 @@
+export class ConnectorRegistry{constructor(){this.items=new Map()}register(name,connector){this.items.set(name,connector);return connector}get(name){return this.items.get(name)}async trigger(name,event,payload){const c=this.get(name);if(!c?.handle)throw Error("connector unavailable");return c.handle(event,payload)}list(){return [...this.items.keys()]}}

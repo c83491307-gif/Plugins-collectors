@@ -1,0 +1,1 @@
+export class BackupManager{constructor(){this.snapshots=new Map()}backup(name,state){this.snapshots.set(name,structuredClone(state));return name}restore(name){if(!this.snapshots.has(name))throw Error("backup not found");return structuredClone(this.snapshots.get(name))}list(){return[...this.snapshots.keys()]}}

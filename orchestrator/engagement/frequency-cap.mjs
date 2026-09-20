@@ -1,0 +1,1 @@
+export class FrequencyCap{constructor({limit=3,windowMs=86400000}={}){this.limit=limit;this.windowMs=windowMs;this.sent=new Map()}allow(key,now=Date.now()){const a=(this.sent.get(key)||[]).filter(t=>now-t<this.windowMs);this.sent.set(key,a);return a.length<this.limit}record(key,now=Date.now()){const a=(this.sent.get(key)||[]);a.push(now);this.sent.set(key,a);return a.length}}
