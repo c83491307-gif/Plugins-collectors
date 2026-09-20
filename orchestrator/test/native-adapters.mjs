@@ -5,6 +5,7 @@ assert.throws(()=>new AnthropicAdapter(),/ANTHROPIC_API_KEY_REQUIRED/);
 assert.throws(()=>new GoogleAdapter(),/GEMINI_API_KEY_REQUIRED/);
 const a=new AnthropicAdapter({apiKey:"test",baseUrl:"https://example.invalid"});
 assert.equal(a.mapError(429,{error:{message:"x"}}).code,"RATE_LIMIT");
-const g=new GoogleAdapter({apiKey:"test",baseUrl:"https://example.invalid"});
+const g=new GoogleAdapter({apiKey:"SECRET-TEST-KEY",baseUrl:"https://example.invalid"});
 assert.equal(g.mapError(500,{error:{message:"x"}}).code,"PROVIDER_DOWN");
+assert.equal(g.buildUrl("gemini-test").includes("SECRET-TEST-KEY"),false);assert.equal(g.buildUrl("gemini-test").includes("key="),false);
 console.log("native-adapters: ok");

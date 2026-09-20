@@ -9,7 +9,7 @@ r.smartSend.record(10,{delivered:10,read:5});assert.equal(r.smartSend.best(),10)
 r.automationGraph.register({id:"f",nodes:[{type:"set",key:"ok",value:true}]});assert.equal((await r.automationGraph.run("f")).ok,true);assert.equal((await r.automationGraph.run("f",{}, {dryRun:true})).dryRun,true);
 r.webhooks.route("x",p=>p);const body='{}',ts=String(Date.now()),sig=r.webhooks.sign(body,ts);assert.equal(r.webhooks.verify(body,{timestamp:ts,signature:sig,id:"1"}),true);assert.deepEqual(await r.webhooks.handle("x",{a:1}),{a:1});
 r.rbac.createTenant("t");r.rbac.grant("t","u","editor");assert.equal(r.rbac.can("t","u","send"),true);
-r.secrets.put("k","v");assert.equal(r.secrets.get("k"),"v");r.secrets.rotate("k","v2");assert.equal(r.secrets.get("k"),"v2");
+r.secrets.put("k","v");assert.equal(r.secrets.get("k"),"v");assert.equal(r.secrets.items.get("k").value,undefined);assert.ok(r.secrets.items.get("k").ciphertext);r.secrets.rotate("k","v2");assert.equal(r.secrets.get("k"),"v2");
 r.budgets.set("t",10);r.budgets.charge("t",3);assert.equal(r.budgets.get("t").used,3);
 r.queue.push({id:"j"});const q=await r.queue.drain(async()=>{});assert.equal(q.processed,1);
 r.providerHealth.record("a",true,5);assert.deepEqual(r.providerHealth.rank(["a"]),["a"]);
