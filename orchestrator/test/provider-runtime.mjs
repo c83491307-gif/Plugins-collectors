@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import {createRuntime} from "../runtime.mjs";
+const r=createRuntime({masterKey:"provider-runtime-test"});
+assert.ok(r.providers);
+const adapter=r.providers.configure("deepseek");
+assert.equal(adapter.baseUrl??adapter.definition?.baseUrl,"https://api.deepseek.com");
+const id=r.connections.add({provider:"deepseek",secret:"sk-abcdefghijklmnop",accountId:"a1"});
+assert.ok(id);
+assert.equal(r.connections.list("deepseek").length,1);
+const model=r.providers.registerModel({id:"deepseek-test",provider:"deepseek",capabilities:["chat"],priority:90});
+assert.equal(model.provider,"deepseek");
+assert.equal(typeof model.adapter.invoke,"function");
+console.log("PROVIDER RUNTIME TEST: PASS");

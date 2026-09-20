@@ -14,6 +14,7 @@ import {Planner} from "./agents/planner.mjs";
 import {ConnectionManager} from "./auth/connection-manager.mjs";
 import {AdaptiveScheduler} from "./core/adaptive-scheduler.mjs";
 import {ContextCache} from "./core/context-cache.mjs";
+import {ProviderRuntime} from "./core/provider-runtime.mjs";
 import {EventBus} from "./observability/events.mjs";
 import {ComplianceGate} from "./engagement/compliance-gate.mjs";
 import {AudienceEngine} from "./engagement/audience.mjs";
@@ -51,7 +52,9 @@ export function createRuntime(config={}){
  const runtime={registry,policy,router,usage:new UsageLedger(),graph:new AgentGraph(config.graph),mcp:new MCPGateway(),plugins:new PluginRegistry(),skills:new SkillLoader(),credentials:new CredentialPool(),events,audience,compliance,templates,audit:new AuditLog()};
  runtime.connections=(config.masterKey??process.env.APP_MASTER_KEY)?new ConnectionManager({masterKey:config.masterKey??process.env.APP_MASTER_KEY}):null;
  runtime.circuitBreaker=new CircuitBreaker(config.circuitBreaker); router.circuitBreaker=runtime.circuitBreaker;
- runtime.contextCache=new ContextCache(config.cache); runtime.scheduler=new AdaptiveScheduler({registry,policy,circuitBreaker:runtime.circuitBreaker});
+ runtime.contextCache=new ContextCache(config.cache);
+ runtime.providers=new ProviderRuntime({registry,connections:runtime.connections,usage:runtime.usage});
+ runtime.scheduler=new AdaptiveScheduler({registry,policy,circuitBreaker:runtime.circuitBreaker});
  runtime.mcpLifecycle=new MCPLifecycle(runtime.mcp); runtime.mcpAggregator=new MCPAggregator(runtime.mcp); runtime.planner=new Planner(runtime.router);
  runtime.campaigns=new CampaignEngine({compliance,audience,templates,events}); runtime.automation=new AutomationEngine({events});
  runtime.analytics=new EngagementAnalytics(); runtime.channels=new OmnichannelRouter(); runtime.deliveryGovernor=new DeliveryGovernor(config.delivery);
@@ -59,7 +62,7 @@ export function createRuntime(config={}){
  runtime.inbox=new InboxEngine({events}); runtime.frequencyCap=new FrequencyCap(config.frequency); runtime.campaignPlanner=new CampaignPlanner({templates});
  runtime.revenue=new RevenueAttribution(); runtime.smartSend=new SmartSendTime(); runtime.automationGraph=new AutomationGraph({events});
  runtime.webhooks=new WebhookGateway({secret:config.webhookSecret??process.env.WEBHOOK_SECRET}); runtime.connectors=new ConnectorRegistry();
- runtime.rbac=new TenantRBAC(); runtime.secrets=new SecretVault(); runtime.budgets=new BudgetManager(); runtime.queue=new DurableQueue(config.queue);
+ runtime.rbac=new TenantRBAC(); runtime.secrets=new SecretVault({masterKey:config.masterKey??process.env.APP_MASTER_KEY}); runtime.budgets=new BudgetManager(); runtime.queue=new DurableQueue(config.queue);
  runtime.providerHealth=new ProviderHealth(config.providerHealth); runtime.knowledgeBase=new KnowledgeBase(); runtime.intent=new IntentRouter(); runtime.models=new ModelRouter(); runtime.backups=new BackupManager();
  events.on("campaign.sent",e=>runtime.analytics.track?.("sent",e)); events.on("campaign.delivered",e=>runtime.analytics.track?.("delivered",e)); events.on("campaign.read",e=>runtime.analytics.track?.("read",e)); events.on("campaign.replied",e=>runtime.analytics.track?.("replied",e));
  return runtime;
