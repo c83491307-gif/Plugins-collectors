@@ -1,1 +1,79 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Creazzy Universal AI</title><link rel="stylesheet" href="/ui/style.css"></head><body><main><header><div><span class="eyebrow">UNIVERSAL AI ORCHESTRATOR</span><h1>One control plane for every model.</h1><p>Accounts, routing, health and connected providers in one operational view.</p></div><a href="/healthz">Health API</a></header><section class="grid"><article><span>Providers</span><strong id="providers">—</strong></article><article><span>Models</span><strong id="models">—</strong></article><article><span>Accounts</span><strong id="accounts">—</strong></article><article><span>System</span><strong id="status">checking</strong></article></section><section class="panel"><div class="panelhead"><h2>Model registry</h2><button id="refresh">Refresh</button></div><div id="list" class="list"></div></section></main><script src="/ui/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Creazzy Universal AI</title>
+<link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">C</div><div><b>CREAZZY</b><span>UNIVERSAL AI</span></div></div>
+    <nav>
+      <button class="nav active" data-view="chat">Chat workspace</button>
+      <button class="nav" data-view="providers">Providers & accounts</button>
+      <button class="nav" data-view="models">Model registry</button>
+      <button class="nav" data-view="system">Runtime & health</button>
+    </nav>
+    <div class="side-foot"><span id="connectionDot" class="dot"></span><span id="connectionText">Checking runtime…</span></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div><span class="eyebrow">AI ORCHESTRATION CONTROL PLANE</span><h1 id="viewTitle">Chat workspace</h1></div>
+      <div class="top-actions"><button id="refreshAll" class="button ghost">Refresh</button><button id="settingsButton" class="button">API access</button></div>
+    </header>
+
+    <section id="view-chat" class="view active">
+      <div class="stats">
+        <article><span>Providers</span><strong id="providers">—</strong></article>
+        <article><span>Models</span><strong id="models">—</strong></article>
+        <article><span>Accounts</span><strong id="accounts">—</strong></article>
+        <article><span>Runtime</span><strong id="status">checking</strong></article>
+      </div>
+      <div class="chat-layout">
+        <section class="panel chat-panel">
+          <div class="panel-head"><div><h2>Conversation</h2><p>Requests are routed through the Creazzy provider runtime with automatic model/account failover.</p></div><button id="clearChat" class="button ghost">Clear</button></div>
+          <div id="messages" class="messages"><div class="empty"><b>Ready.</b><span>Configure at least one provider secret in Cloudflare, then send your first message.</span></div></div>
+          <form id="chatForm" class="composer">
+            <select id="modelSelect"><option value="">Auto-route model</option></select>
+            <textarea id="prompt" rows="3" placeholder="Ask Creazzy anything…"></textarea>
+            <div class="composer-foot"><span id="chatHint">Provider credentials are server-side.</span><button class="button primary" type="submit">Send <span>↵</span></button></div>
+          </form>
+        </section>
+        <aside class="panel inspector">
+          <div class="panel-head"><div><h2>Live runtime</h2><p>Operational state from the Worker.</p></div></div>
+          <div id="providerMini" class="stack"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-providers" class="view">
+      <div class="section-intro"><div><span class="eyebrow">CONFIGURATION</span><h2>Providers & accounts</h2><p>Credentials stay in Cloudflare Worker Secrets. The browser never receives their values.</p></div></div>
+      <div id="providerGrid" class="provider-grid"></div>
+      <div class="panel setup-panel"><h3>Cloudflare secret naming</h3><p>Use one base secret plus numbered secrets per provider: <code>DEEPSEEK_API_KEY</code>, <code>DEEPSEEK_API_KEY_2</code> … <code>DEEPSEEK_API_KEY_10</code>. The same pattern is supported for OpenAI, NVIDIA, xAI and Google.</p></div>
+    </section>
+
+    <section id="view-models" class="view">
+      <div class="section-intro"><div><span class="eyebrow">DISCOVERY</span><h2>Model registry</h2><p>Models are discovered from configured providers and registered into the routing layer.</p></div><button id="syncModels" class="button primary">Sync providers</button></div>
+      <div class="panel"><div id="modelList" class="model-table"></div></div>
+    </section>
+
+    <section id="view-system" class="view">
+      <div class="section-intro"><div><span class="eyebrow">OPERATIONS</span><h2>Runtime & health</h2><p>Inspect the actual Worker/API state and recent provider discovery results.</p></div></div>
+      <div class="system-grid">
+        <div class="panel"><h3>Worker</h3><div id="healthDetails" class="detail-list"></div></div>
+        <div class="panel"><h3>Access</h3><div id="accessDetails" class="detail-list"></div></div>
+      </div>
+      <div class="panel"><h3>Activity</h3><div id="activity" class="activity"></div></div>
+    </section>
+  </main>
+</div>
+
+<div id="accessModal" class="modal hidden"><div class="modal-card"><div class="panel-head"><div><span class="eyebrow">LOCAL SESSION</span><h2>API access</h2></div><button id="closeModal" class="button ghost">Close</button></div><p>If <code>CREAZZY_API_TOKEN</code> is configured on the Worker, paste it here. It is stored only in this browser's local storage.</p><input id="apiToken" type="password" autocomplete="off" placeholder="Bearer token"><div class="modal-actions"><button id="saveToken" class="button primary">Save access token</button><button id="removeToken" class="button ghost">Remove</button></div></div></div>
+<div id="toast" class="toast"></div>
+<script src="/ui/app.js"></script>
+</body>
+</html>
