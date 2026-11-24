@@ -102,3 +102,14 @@ The CEPX API now uses tenant-aware service methods for project creation/list/rea
 ```
 
 Tenant memberships must be provisioned before those principals can access projects. Do not put real bearer tokens in source control. Run `npm run cepx` to include the enterprise isolation and chaos/property suite in both Node 20 and Node 22 CI jobs.
+
+
+## Integrated main application workspace
+
+The main application at `/ui/` now includes a **CEPX Workspace** navigation entry in addition to Chat, Providers, Models, Scanner Hub and Runtime. The workspace connects to the same authenticated `/api/cepx/*` service and the active CEPX storage backend; it does not create a second database or silently migrate data.
+
+Workspace tools include tenant-scoped project listing/creation, task creation and state transitions, signed checkpoint creation and restore, handoff generation, event-chain verification and recent event inspection, runtime health, and tenant backup export with the server-generated checksum. The new `GET /api/cepx/events?limit=N` endpoint returns only the authenticated tenant's recent events (maximum 100) and requires read permission. The separate `/ui/cepx.html` control center remains available for compatibility.
+
+The dashboard reads the existing browser `creazzy.token` value (or legacy `cepx-token`) for CEPX API authentication. Configure `CEPX_API_TOKEN` and, for multi-tenant use, `CEPX_API_PRINCIPALS` on the server. The browser never receives database credentials. Backup export downloads a tenant-scoped JSON snapshot; operators must store it in a protected external location. This UI does not schedule off-host backups or expose plugin enablement until tenant-scoped plugin administration endpoints are implemented.
+
+The CEPX API integration test verifies the main UI entry point, dashboard asset, tenant-scoped event list, health and backup endpoints in addition to existing project/task/checkpoint behavior.
