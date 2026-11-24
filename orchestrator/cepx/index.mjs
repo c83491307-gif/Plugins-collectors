@@ -1,6 +1,7 @@
 import {createHash, randomUUID} from "node:crypto";
 import {mkdir,readFile,rename,writeFile,rm,stat,utimes,open} from "node:fs/promises";
-import {dirname,hostname} from "node:path";
+import {dirname} from "node:path";
+import {hostname} from "node:os";
 import {setTimeout as delay} from "node:timers/promises";
 import {isAbsolute} from "node:path";
 const hash=v=>createHash("sha256").update(JSON.stringify(v)).digest("hex");
