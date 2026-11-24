@@ -19,6 +19,11 @@ try{
  assert.equal(response.status,201);assert.equal((await response.json()).project.id,"api-project");
  response=await fetch(url+"/api/cepx/projects/api-project/tasks",{method:"POST",headers,body:JSON.stringify({title:"API task"})});
  assert.equal(response.status,201);const task=await response.json();assert.equal(task.created,true);
+ const taskId=(await (await fetch(url+"/api/cepx/projects/api-project")).json()).project.tasks[0].id;
+ response=await fetch(url+"/api/cepx/projects/api-project/tasks/"+taskId,{method:"PATCH",headers,body:JSON.stringify({status:"running"})});assert.equal(response.status,200);
+ response=await fetch(url+"/api/cepx/projects/api-project/tasks/"+taskId,{method:"PATCH",headers,body:JSON.stringify({status:"failed",error:"API simulated failure",baseDelayMs:1})});assert.equal(response.status,200);const failedTask=await response.json();assert.equal(failedTask.deadLetter.status,"retry");
+ response=await fetch(url+"/api/cepx/dead-letters?status=retry",{headers});assert.equal(response.status,200);const dlq=await response.json();assert.ok(dlq.items.some(x=>x.id===failedTask.deadLetter.id));
+ response=await fetch(url+"/api/cepx/retries/process",{method:"POST",headers,body:JSON.stringify({at:failedTask.deadLetter.nextAt+1000})});assert.equal(response.status,200);assert.ok((await response.json()).processed.some(x=>x.deadLetterId===failedTask.deadLetter.id));
  response=await fetch(url+"/api/cepx/projects/api-project/checkpoint",{method:"POST",headers,body:JSON.stringify({reason:"api test"})});
  assert.equal(response.status,201,await response.clone().text());
  response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.equal(eventData.total,2,"project and task events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.created");
@@ -50,7 +55,7 @@ try{
  const dependent=await restarted.enqueue("api-project",{title:"dependent",dependsOn:[task.task.id]});assert.equal(dependent.created,true);await assert.rejects(()=>restarted.transition("api-project",dependent.task.id,"running"),/DEPENDENCIES_INCOMPLETE/);
  response=await fetch(url+"/api/cepx/context/compress",{method:"POST",headers,body:JSON.stringify({input:{project:"api-project",goal:"persist",rules:["no secrets"]},maxChars:512})});
  assert.equal(response.status,200);assert.ok((await response.json()).checksum);
- console.log("CEPX API tests PASS: bearer auth, project CRUD, task ledger, signed checkpoints, tenant event feed, plugin registry/capability negotiation/RBAC, tenant member administration, quotas, backup, health, main UI integration, context compression");
+ console.log("CEPX API tests PASS: bearer auth, project CRUD, task ledger, signed checkpoints, tenant event feed, automatic task failure DLQ/retry processing, plugin registry/capability negotiation/RBAC, tenant member administration, quotas, backup, health, main UI integration, context compression");
 }finally{
  await new Promise(resolve=>server.close(resolve));
  if(prior===undefined)delete process.env.CEPX_API_TOKEN;else process.env.CEPX_API_TOKEN=prior;
