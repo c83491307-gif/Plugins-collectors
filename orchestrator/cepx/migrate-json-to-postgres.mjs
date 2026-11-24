@@ -41,7 +41,9 @@ export async function migrateJsonToPostgres({file,store,backupPath,apply=false}=
  if(!targetEmpty)throw Error("CEPX_MIGRATION_TARGET_CHANGED");
  const backup=resolve(backupPath??(sourcePath+".pre-postgres-backup"));
  // Exclusive creation prevents overwriting a prior recovery copy.
- await copyFile(sourcePath,backup,1);
+ let backupCreated=false;
+ try{await copyFile(sourcePath,backup,1);backupCreated=true;}
+ catch(error){if(error.code!=="EEXIST")throw error;}
  const backupBytes=await readFile(backup);
  if(sha256(backupBytes)!==sha256(sourceBytes))throw Error("CEPX_MIGRATION_BACKUP_CHECKSUM_MISMATCH");
  try{
@@ -56,7 +58,7 @@ export async function migrateJsonToPostgres({file,store,backupPath,apply=false}=
   // Detect source edits during the migration; retain destination but fail loudly for operator review.
   const sourceAfter=await readFile(sourcePath);
   if(sha256(sourceAfter)!==sha256(sourceBytes))throw Error("CEPX_MIGRATION_SOURCE_CHANGED_DURING_RUN");
-  return {...preview,backup,backupChecksum:sha256(backupBytes),applied:true,verified:true,targetChecksum};
+  return {...preview,backup,backupCreated,backupChecksum:sha256(backupBytes),applied:true,verified:true,targetChecksum};
  }catch(error){
   // Never delete the backup or mutate the source. An operator can safely rerun after inspecting target state.
   throw error;
