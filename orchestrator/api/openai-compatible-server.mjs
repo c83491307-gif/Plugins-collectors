@@ -3,6 +3,23 @@ import {completeDeepSeekConnection,beginDeepSeekConnection} from "../auth/deepse
 import {serveUI} from "../web/ui-handler.mjs";
 export function startServer({runtime,port=8787}){return createServer(async(req,res)=>{try{
 if(req.url?.startsWith("/ui")){if(await serveUI(req,res))return;}
+if(req.url?.startsWith("/api/cepx/")){
+ const token=process.env.CEPX_API_TOKEN, supplied=String(req.headers.authorization??"").replace(/^Bearer\\s+/i,"");
+ const ip=req.socket.remoteAddress, local=ip==="127.0.0.1"||ip==="::1"||ip==="::ffff:127.0.0.1";
+ if(token?supplied!==token:!local)return json(res,403,{error:{message:"CEPX_ACCESS_DENIED"}});
+ const u=new URL(req.url,"http://localhost"), a=u.pathname.split("/").filter(Boolean).slice(2).map(decodeURIComponent), m=req.method??"GET";
+ if(a[0]==="projects"&&a.length===1&&m==="GET")return json(res,200,{projects:await runtime.cepx.list()});
+ if(a[0]==="projects"&&a.length===1&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,201,{project:await runtime.cepx.ensureProject(p.id,p)});}
+ if(a[0]==="projects"&&a.length===2&&m==="GET"){const p=await runtime.cepx.get(a[1]);return p?json(res,200,{project:p,recovery:await runtime.cepx.inspect(a[1])}):json(res,404,{error:{message:"PROJECT_NOT_FOUND"}});}
+ if(a[0]==="projects"&&a.length===3&&a[2]==="tasks"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,201,await runtime.cepx.enqueue(a[1],p));}
+ if(a[0]==="projects"&&a.length===4&&a[2]==="tasks"&&m==="PATCH"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,{task:await runtime.cepx.transition(a[1],a[3],p.status,p)});}
+ if(a[0]==="projects"&&a.length===3&&a[2]==="checkpoint"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,201,await runtime.cepx.checkpoint(a[1],p.reason));}
+ if(a[0]==="projects"&&a.length===3&&a[2]==="recover"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,{project:await runtime.cepx.restore(a[1],p.checkpointId)});}
+ if(a[0]==="projects"&&a.length===3&&a[2]==="handoff"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,await runtime.cepx.handoff(a[1],p));}
+ if(a[0]==="context"&&a[1]==="compress"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,runtime.cepx.compress(p.input,p));}
+ return json(res,404,{error:{message:"CEPX_ROUTE_NOT_FOUND"}});
+}
+
 if(req.url==="/healthz"){return json(res,200,{status:"ok"});}
 if(req.url==="/v1/models"){return json(res,200,{object:"list",data:runtime.registry.models.map(m=>({id:m.id,object:"model",owned_by:m.provider}))});}
 if(req.url?.match(/^\/providers\/[^/]+\/sync$/)&&req.method==="POST"){
