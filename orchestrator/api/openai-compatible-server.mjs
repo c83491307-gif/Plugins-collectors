@@ -5,10 +5,10 @@ export function startServer({runtime,port=8787}){return createServer(async(req,r
 if(req.url?.startsWith("/ui")){if(await serveUI(req,res))return;}
 if(req.url?.startsWith("/api/cepx/")){
  const token=process.env.CEPX_API_TOKEN, supplied=String(req.headers.authorization??"").replace(/^Bearer\s+/i,"");
- const ip=req.socket.remoteAddress, local=ip==="127.0.0.1"||ip==="::1"||ip==="::ffff:127.0.0.1";
- if(token?supplied!==token:!local)return json(res,403,{error:{message:"CEPX_ACCESS_DENIED"}});
- await runtime.cepx.ready();
  const configured=JSON.parse(process.env.CEPX_API_PRINCIPALS??"{}");
+ const ip=req.socket.remoteAddress, local=ip==="127.0.0.1"||ip==="::1"||ip==="::ffff:127.0.0.1";
+ if(token?(supplied!==token&&!configured[supplied]):(!local&&!configured[supplied]))return json(res,403,{error:{message:"CEPX_ACCESS_DENIED"}});
+ await runtime.cepx.ready();
  let principal=configured[supplied];
  if(!principal&&token&&supplied===token)principal={tenantId:"default",userId:"legacy-owner"};
  if(!principal&&local&&!token)principal={tenantId:"default",userId:"local-owner"};
