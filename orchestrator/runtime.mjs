@@ -67,7 +67,7 @@ export function createRuntime(config={}){
  runtime.rbac=new TenantRBAC(); runtime.secrets=new SecretVault({masterKey:config.masterKey??process.env.APP_MASTER_KEY}); runtime.budgets=new BudgetManager(); runtime.queue=new DurableQueue(config.queue);
  runtime.providerHealth=new ProviderHealth(config.providerHealth); runtime.knowledgeBase=new KnowledgeBase(); runtime.intent=new IntentRouter(); runtime.models=new ModelRouter(); runtime.backups=new BackupManager();
  const cePxConfig=config.cepx??{};
- const cePxStore=cePxConfig.store??(cePxConfig.pool?new CEPXPostgresStore({pool:cePxConfig.pool,lockKey:cePxConfig.lockKey}):null);
+ const cePxStore=cePxConfig.store??(cePxConfig.pool?new CEPXPostgresStore({pool:cePxConfig.pool,namespace:cePxConfig.namespace,lockKey:cePxConfig.lockKey}):null);
  if(cePxConfig.backend==="postgres"&&!cePxStore)throw Error("CEPX_POSTGRES_POOL_REQUIRED: use createRuntimeAsync or pass cePx.pool");
  runtime.cepx=new CEPX({file:cePxConfig.file??process.env.CEPX_STATE_FILE??"./data/cepx/projects.json",store:cePxStore});
  events.on("campaign.sent",e=>runtime.analytics.track?.("sent",e)); events.on("campaign.delivered",e=>runtime.analytics.track?.("delivered",e)); events.on("campaign.read",e=>runtime.analytics.track?.("read",e)); events.on("campaign.replied",e=>runtime.analytics.track?.("replied",e));
