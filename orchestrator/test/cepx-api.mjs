@@ -20,7 +20,7 @@ try{
  response=await fetch(url+"/api/cepx/projects/api-project/tasks",{method:"POST",headers,body:JSON.stringify({title:"API task"})});
  assert.equal(response.status,201);const task=await response.json();assert.equal(task.created,true);
  response=await fetch(url+"/api/cepx/projects/api-project/checkpoint",{method:"POST",headers,body:JSON.stringify({reason:"api test"})});
- assert.equal(response.status,201);
+ assert.equal(response.status,201,await response.clone().text());
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
  response=await fetch(url+"/ui/cepx.html");assert.equal(response.status,200);assert.match(await response.text(),/CEPX Control Center/);
