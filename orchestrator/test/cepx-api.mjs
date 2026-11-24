@@ -20,7 +20,7 @@ try{
  response=await fetch(url+"/api/cepx/projects/api-project/tasks",{method:"POST",headers,body:JSON.stringify({title:"API task"})});
  assert.equal(response.status,201);const task=await response.json();assert.equal(task.created,true);
  const taskId=(await (await fetch(url+"/api/cepx/projects/api-project",{headers})).json()).project.tasks[0].id;
- response=await fetch(url+"/api/cepx/projects/api-project/tasks/"+taskId,{method:"PATCH",headers,body:JSON.stringify({status:"running"})});assert.equal(response.status,200);
+ response=await fetch(url+"/api/cepx/projects/api-project/tasks/"+taskId,{method:"PATCH",headers,body:JSON.stringify({status:"running"})});assert.equal(response.status,200,await response.clone().text());
  response=await fetch(url+"/api/cepx/projects/api-project/tasks/"+taskId,{method:"PATCH",headers,body:JSON.stringify({status:"failed",error:"API simulated failure",baseDelayMs:1})});assert.equal(response.status,200);const failedTask=await response.json();assert.equal(failedTask.deadLetter.status,"retry");
  response=await fetch(url+"/api/cepx/dead-letters?status=retry",{headers});assert.equal(response.status,200);const dlq=await response.json();assert.ok(dlq.items.some(x=>x.id===failedTask.deadLetter.id));
  response=await fetch(url+"/api/cepx/retries/process",{method:"POST",headers,body:JSON.stringify({at:failedTask.deadLetter.nextAt+1000})});assert.equal(response.status,200);assert.ok((await response.json()).processed.some(x=>x.deadLetterId===failedTask.deadLetter.id));
