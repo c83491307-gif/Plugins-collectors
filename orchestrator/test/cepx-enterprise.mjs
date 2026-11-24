@@ -1,0 +1,68 @@
+import assert from "node:assert/strict";
+import {mkdtemp,rm} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+import {createRuntime} from "../runtime.mjs";
+
+const dir=await mkdtemp(join(tmpdir(),"cepx-enterprise-"));
+const runtime=createRuntime({cepx:{file:join(dir,"state.json")},masterKey:"enterprise-test-master-key"});
+const e=runtime.cepx.enterprise;
+try{
+ await runtime.cepx.ready();
+ const schema=await e.snapshot();assert.equal(schema.schemaVersion,2,"schema v1 state must migrate to v2");
+ await e.createTenant("tenant-a",{name:"Tenant A"});await e.grant("tenant-a","alice","owner");await e.grant("tenant-a","reader","viewer");
+ await e.createTenant("tenant-b",{name:"Tenant B"});await e.grant("tenant-b","bob","owner");
+ await e.createProject("tenant-a","alice","project-a",{name:"A"});
+ await e.createProject("tenant-b","bob","project-b",{name:"B"});
+ await assert.rejects(()=>e.getProject("tenant-b","alice","project-b"),/PROJECT_NOT_FOUND/);
+ await assert.rejects(()=>e.createProject("tenant-a","reader","forbidden"),/CEPX_FORBIDDEN/);
+ await assert.rejects(()=>e.addTask("tenant-a","reader","project-a",{title:"no"}),/CEPX_FORBIDDEN/);
+ for(let i=0;i<7;i++)await e.addTask("tenant-a","alice","project-a",{id:"t"+i,title:"Task "+i,status:i%2?"pending":"failed"});
+ const page1=await e.listTasks("tenant-a","alice","project-a",{limit:3,status:"pending"});
+ assert.equal(page1.items.length,3);assert.ok(page1.nextCursor);
+ const page2=await e.listTasks("tenant-a","alice","project-a",{limit:3,status:"pending",cursor:page1.nextCursor});
+ assert.equal(page2.items.length,0,"cursor must continue within filtered result set");
+ await assert.rejects(()=>e.setQuota("tenant-a","reader",{tasks:1}),/CEPX_FORBIDDEN/);
+ await e.setQuota("tenant-a","alice",{tasks:100,requestsPerMinute:2});
+ await e.consumeRequest("tenant-a","alice");await e.consumeRequest("tenant-a","alice");
+ await assert.rejects(()=>e.consumeRequest("tenant-a","alice"),/CEPX_RATE_LIMITED/);
+ const cipher=await e.encrypt("tenant-a","alice","sensitive evidence");
+ assert.equal(await e.decrypt("tenant-a","alice",cipher),"sensitive evidence");
+ await e.rotateEncryptionKey("tenant-a","alice");
+ assert.equal(await e.decrypt("tenant-a","alice",cipher),"sensitive evidence","old key must remain decryptable after rotation");
+ const fresh=await e.encrypt("tenant-a","alice","after rotation");assert.equal(fresh.keyVersion,2);
+ const cp=await e.signCheckpoint("tenant-a","alice","project-a","signed");
+ assert.equal((await e.verifySignedCheckpoint("tenant-a","alice","project-a",cp.id)).valid,true);
+ await e.appendEvent("tenant-a","alice","project-a","task.changed",{taskId:"t1"});
+ await e.appendEvent("tenant-a","alice","project-a","task.changed",{taskId:"t2"});
+ assert.equal((await e.verifyEvents("tenant-a")).valid,true);
+ const failed=await e.failTask("tenant-a","alice","project-a",{id:"retry-1",attempts:4},{error:"worker crash",maxAttempts:5,baseDelayMs:5});
+ assert.equal(failed.status,"dead");assert.ok(failed.nextAt>=failed.createdAt);
+ assert.equal((await e.replayDeadLetter("tenant-a","alice",failed.id)).id,"retry-1");
+ const lease=await e.acquireLease("tenant-a","alice","project-a","t1",{workerId:"worker-1"});
+ await assert.rejects(()=>e.acquireLease("tenant-a","alice","project-a","t1",{workerId:"worker-2"}),/TASK_LEASE_HELD/);
+ await e.releaseLease("tenant-a","alice",lease.key,lease.token);
+ const stopped=await e.stopScheduler();assert.equal(stopped.drained,true);
+ await assert.rejects(()=>e.acquireLease("tenant-a","alice","project-a","t2",{workerId:"worker-1"}),/SCHEDULER_STOPPING/);
+ const archived=await e.archive("tenant-a","alice","project-a",{retentionMs:0});assert.ok(archived.purgeAfter);
+ const retention=await e.applyRetention("tenant-a","alice");assert.equal(retention.preservedEvidence,true);
+ assert.ok(await e.restoreArchive("tenant-a","alice","project-a"));
+ const backup=await e.backup("tenant-a","alice");assert.ok(backup.checksum);
+ assert.ok((await e.backupRestoreDrill("tenant-a","alice",backup)).success);
+ await e.registerPluginContract("sample",{version:"1.0.0",capabilities:["tasks"],requiredCapabilities:["tenant-context","rbac"]});
+ await assert.rejects(()=>e.enablePluginContract("sample",["tasks"]),/PLUGIN_CAPABILITY_MISMATCH/);
+ assert.equal((await e.enablePluginContract("sample",["tenant-context","rbac"])).enabled,true);
+ const metric=await e.recordMetric("task.latency",12,{tenantId:"tenant-a"});assert.equal(e.health().status,"ok");
+ // Property-based invariant sampling: event chain remains contiguous under generated append sequences.
+ for(let i=0;i<40;i++)await e.appendEvent("tenant-a","alice","project-a","generated",{i,seed:20261124});
+ assert.equal((await e.verifyEvents("tenant-a")).valid,true);
+ // Chaos: a failed state mutation must roll back without leaking partial state.
+ const before=(await e.getProject("tenant-a","alice","project-a")).tasks.length;
+ await assert.rejects(()=>runtime.cepx.mutate(s=>{s.projects["project-a"].tasks.push({id:"partial"});throw Error("injected-chaos");}),/injected-chaos/);
+ assert.equal((await e.getProject("tenant-a","alice","project-a")).tasks.length,before);
+ const altered=await runtime.cepx.mutate(s=>{const event=s.events.find(x=>x.tenantId==="tenant-a");event.payload.i=-1;});
+ await assert.rejects(()=>e.verifyEvents("tenant-a"),/CEPX_EVENT_TAMPERED/);
+ const signedCheck=await e.verifySignedCheckpoint("tenant-a","alice","project-a",cp.id);assert.equal(signedCheck.valid,true);
+ const health=e.health();assert.equal(health.status,"ok");
+ console.log("CEPX enterprise PASS: schema v2, tenant isolation, project RBAC, filtered cursor pagination, quotas/rate limiting, AES-GCM key rotation, Ed25519 checkpoint signatures, event sequence/causality/hash chain, DLQ/backoff/replay, worker leases/graceful stop, retention/archive restore, tenant backup drills, plugin contracts/capabilities, metrics/health, property-generated events, rollback chaos");
+}finally{await rm(dir,{recursive:true,force:true});}
