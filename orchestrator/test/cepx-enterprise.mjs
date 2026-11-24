@@ -14,7 +14,7 @@ try{
  await e.createTenant("tenant-b",{name:"Tenant B"});await e.grant("tenant-b","bob","owner");
  await e.createProject("tenant-a","alice","project-a",{name:"A"});
  await e.createProject("tenant-b","bob","project-b",{name:"B"});
- await assert.rejects(()=>e.getProject("tenant-b","alice","project-b"),/PROJECT_NOT_FOUND/);
+ await assert.rejects(()=>e.getProject("tenant-b","alice","project-b"),/CEPX_FORBIDDEN/);
  await assert.rejects(()=>e.createProject("tenant-a","reader","forbidden"),/CEPX_FORBIDDEN/);
  await assert.rejects(()=>e.addTask("tenant-a","reader","project-a",{title:"no"}),/CEPX_FORBIDDEN/);
  for(let i=0;i<7;i++)await e.addTask("tenant-a","alice","project-a",{id:"t"+i,title:"Task "+i,status:i%2?"pending":"failed"});
