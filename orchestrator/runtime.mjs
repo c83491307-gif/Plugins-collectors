@@ -46,6 +46,7 @@ import {IntentRouter} from "./ai/intent-router.mjs";
 import {ModelRouter} from "./ai/model-router.mjs";
 import {BackupManager} from "./storage/backup-manager.mjs";
 import {CEPX} from "./cepx/index.mjs";
+import {CEPXPostgresStore} from "./cepx/postgres-store.mjs";
 
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
@@ -65,7 +66,28 @@ export function createRuntime(config={}){
  runtime.webhooks=new WebhookGateway({secret:config.webhookSecret??process.env.WEBHOOK_SECRET}); runtime.connectors=new ConnectorRegistry();
  runtime.rbac=new TenantRBAC(); runtime.secrets=new SecretVault({masterKey:config.masterKey??process.env.APP_MASTER_KEY}); runtime.budgets=new BudgetManager(); runtime.queue=new DurableQueue(config.queue);
  runtime.providerHealth=new ProviderHealth(config.providerHealth); runtime.knowledgeBase=new KnowledgeBase(); runtime.intent=new IntentRouter(); runtime.models=new ModelRouter(); runtime.backups=new BackupManager();
- runtime.cepx=new CEPX({file:config.cepx?.file??process.env.CEPX_STATE_FILE??"./data/cepx/projects.json"});
+ const cePxConfig=config.cepx??{};
+ const cePxStore=cePxConfig.store??(cePxConfig.pool?new CEPXPostgresStore({pool:cePxConfig.pool,lockKey:cePxConfig.lockKey}):null);
+ if(cePxConfig.backend==="postgres"&&!cePxStore)throw Error("CEPX_POSTGRES_POOL_REQUIRED: use createRuntimeAsync or pass cePx.pool");
+ runtime.cepx=new CEPX({file:cePxConfig.file??process.env.CEPX_STATE_FILE??"./data/cepx/projects.json",store:cePxStore});
  events.on("campaign.sent",e=>runtime.analytics.track?.("sent",e)); events.on("campaign.delivered",e=>runtime.analytics.track?.("delivered",e)); events.on("campaign.read",e=>runtime.analytics.track?.("read",e)); events.on("campaign.replied",e=>runtime.analytics.track?.("replied",e));
+ return runtime;
+}
+
+
+/**
+ * Async runtime factory for DATABASE_URL / CEPX_DATABASE_URL deployments.
+ * The synchronous createRuntime() remains backward-compatible and JSON-first.
+ */
+export async function createRuntimeAsync(config={}){
+ const cePxConfig=config.cepx??{};
+ if(cePxConfig.backend!=="postgres"&&!cePxConfig.databaseUrl&&!process.env.CEPX_DATABASE_URL&&!process.env.DATABASE_URL)return createRuntime(config);
+ const databaseUrl=cePxConfig.databaseUrl??process.env.CEPX_DATABASE_URL??process.env.DATABASE_URL;
+ const {Pool}=await import("pg");
+ const pool=cePxConfig.pool??new Pool({connectionString:databaseUrl,max:cePxConfig.maxConnections??10,connectionTimeoutMillis:cePxConfig.connectionTimeoutMillis??5000});
+ const runtime=createRuntime({...config,cepx:{...cePxConfig,backend:"postgres",pool}});
+ try{await runtime.cepx.ready();}
+ catch(error){if(!cePxConfig.pool)await pool.end().catch(()=>{});throw error;}
+ runtime.close=async()=>{await runtime.cepx.close();};
  return runtime;
 }
