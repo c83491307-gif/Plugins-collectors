@@ -35,7 +35,12 @@ try{
  assert.equal(await e.decrypt("tenant-a","alice",cipher),"sensitive evidence");
  await e.rotateEncryptionKey("tenant-a","alice");
  assert.equal(await e.decrypt("tenant-a","alice",cipher),"sensitive evidence","old key must remain decryptable after rotation");
- const fresh=await e.encrypt("tenant-a","alice","after rotation");assert.equal(fresh.keyVersion,2);
+ const fresh=await e.encrypt("tenant-a","alice","after rotation");assert.equal(fresh.keyVersion,2);assert.equal(fresh.formatVersion,2);
+ const keyState=await e.snapshot();assert.equal(keyState.keyring.versions[2].wrapped,true,"rotated data key must be wrapped at rest");
+ const restartedRuntime=createRuntime({cepx:{file:join(dir,"state.json")},masterKey:"enterprise-test-master-key"});await restartedRuntime.cepx.ready();assert.equal(await restartedRuntime.cepx.enterprise.decrypt("tenant-a","alice",fresh),"after rotation","ciphertext remains decryptable after process restart");
+ const wrongKeyRuntime=createRuntime({cepx:{file:join(dir,"state.json")},masterKey:"wrong-master-key"});await wrongKeyRuntime.cepx.ready();await assert.rejects(()=>wrongKeyRuntime.cepx.enterprise.decrypt("tenant-a","alice",fresh));
+ const noKeyRuntime=createRuntime({cepx:{file:join(dir,"no-key.json")}});await noKeyRuntime.cepx.ready();await assert.rejects(()=>noKeyRuntime.cepx.enterprise.encrypt("tenant-a","alice","blocked"),/CEPX_MASTER_KEY_REQUIRED/);
+
  const cp=await e.signCheckpoint("tenant-a","alice","project-a","signed");
  assert.equal((await e.verifySignedCheckpoint("tenant-a","alice","project-a",cp.id)).valid,true);
  await e.appendEvent("tenant-a","alice","project-a","task.changed",{taskId:"t1"});
@@ -69,5 +74,5 @@ try{
  await assert.rejects(()=>e.verifyEvents("tenant-a"),/CEPX_EVENT_TAMPERED/);
  const signedCheck=await e.verifySignedCheckpoint("tenant-a","alice","project-a",cp.id);assert.equal(signedCheck.valid,true);
  const health=e.health();assert.equal(health.status,"ok");
- console.log("CEPX enterprise PASS: schema v2, tenant isolation, project RBAC, filtered cursor pagination, quotas/rate limiting, AES-GCM key rotation, Ed25519 checkpoint signatures, event sequence/causality/hash chain, DLQ/backoff/replay, worker leases/graceful stop, retention/archive restore, tenant backup drills, plugin contracts/capabilities, metrics/health, property-generated events, rollback chaos");
+ console.log("CEPX enterprise PASS: schema v2, tenant isolation, project RBAC, filtered cursor pagination, quotas/rate limiting, AES-GCM wrapped key rotation/restart recovery and missing-key fail-closed, Ed25519 checkpoint signatures, event sequence/causality/hash chain, DLQ/backoff/replay, worker leases/graceful stop, retention/archive restore, tenant backup drills, plugin contracts/capabilities, metrics/health, property-generated events, rollback chaos");
 }finally{await rm(dir,{recursive:true,force:true});}
