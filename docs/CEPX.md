@@ -138,3 +138,10 @@ CEPX encryption and key rotation now fail closed with `CEPX_MASTER_KEY_REQUIRED`
 New ciphertexts use format version 2 and authenticate the tenant ID and key version as AES-256-GCM additional authenticated data. Rotated tenant data-encryption keys are themselves wrapped with the stable master key and tenant/version binding before persistence. Existing legacy base64 keyring entries and ciphertexts without a format marker remain readable for migration compatibility; newly rotated keys use the wrapped representation. Configure and back up the master key independently of the CEPX database. Losing it makes wrapped tenant keys unrecoverable.
 
 The enterprise test suite now checks wrapped-key persistence, successful decryption after recreating the runtime with the same master key, rejection with a wrong master key, and refusal to encrypt when no stable master key is configured.
+
+
+## Automatic task failure and retry lifecycle
+
+Task state changes through `PATCH /api/cepx/projects/:projectId/tasks/:taskId` now pass through the enterprise transaction layer. A transition to `failed` records the task failure and creates its tenant-scoped dead-letter/retry entry in the same transaction, with bounded exponential delay (`baseDelayMs * 2^(attempts-1)`, capped at one hour) and a configurable `maxAttempts`. `GET /api/cepx/dead-letters?status=retry&limit=50` lists only the caller's tenant entries and requires read permission. `POST /api/cepx/retries/process` processes due retry entries (optional JSON `at` timestamp and `limit`, maximum 100) and atomically returns retryable failed tasks to `pending`; it requires the `schedule` permission. Invalid/missing task records are retained as dead letters with a diagnostic status rather than silently discarded. Processing is an explicit scheduler operation: this API does not yet start a persistent background worker or guarantee automatic invocation after process restart.
+
+Enterprise and API tests cover failure-to-DLQ atomicity, tenant filtering, due-time processing, task state recovery, and scheduler authorization.
