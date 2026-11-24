@@ -46,6 +46,15 @@ try{
  await e.appendEvent("tenant-a","alice","project-a","task.changed",{taskId:"t1"});
  await e.appendEvent("tenant-a","alice","project-a","task.changed",{taskId:"t2"});
  assert.equal((await e.verifyEvents("tenant-a")).valid,true);
+ const retryTask=await e.addTask("tenant-a","alice","project-a",{id:"auto-retry",title:"automatic retry"});
+ await e.transitionTask("tenant-a","alice","project-a",retryTask.id,"running");
+ const failedTransition=await e.transitionTask("tenant-a","alice","project-a",retryTask.id,"failed",{error:"simulated worker crash",maxAttempts:4,baseDelayMs:5});
+ assert.equal(failedTransition.task.status,"failed");assert.equal(failedTransition.deadLetter.status,"retry");
+ assert.equal((await e.listDeadLetters("tenant-a","alice",{status:"retry"})).some(x=>x.id===failedTransition.deadLetter.id),true);
+ const processed=await e.processDueRetries("tenant-a","alice",{at:failedTransition.deadLetter.nextAt+1});
+ assert.equal(processed.processed.some(x=>x.deadLetterId===failedTransition.deadLetter.id),true);
+ assert.equal((await e.getProject("tenant-a","alice","project-a")).tasks.find(x=>x.id==="auto-retry").status,"pending","due retry must return failed task to pending atomically");
+ await assert.rejects(()=>e.processDueRetries("tenant-a","reader",{at:Date.now()+10000}),/CEPX_FORBIDDEN/);
  const failed=await e.failTask("tenant-a","alice","project-a",{id:"retry-1",attempts:4},{error:"worker crash",maxAttempts:5,baseDelayMs:5});
  assert.equal(failed.status,"dead");assert.ok(failed.nextAt>=failed.createdAt);
  assert.equal((await e.replayDeadLetter("tenant-a","alice",failed.id)).id,"retry-1");
@@ -74,5 +83,5 @@ try{
  await assert.rejects(()=>e.verifyEvents("tenant-a"),/CEPX_EVENT_TAMPERED/);
  const signedCheck=await e.verifySignedCheckpoint("tenant-a","alice","project-a",cp.id);assert.equal(signedCheck.valid,true);
  const health=e.health();assert.equal(health.status,"ok");
- console.log("CEPX enterprise PASS: schema v2, tenant isolation, project RBAC, filtered cursor pagination, quotas/rate limiting, AES-GCM wrapped key rotation/restart recovery and missing-key fail-closed, Ed25519 checkpoint signatures, event sequence/causality/hash chain, DLQ/backoff/replay, worker leases/graceful stop, retention/archive restore, tenant backup drills, plugin contracts/capabilities, metrics/health, property-generated events, rollback chaos");
+ console.log("CEPX enterprise PASS: schema v2, tenant isolation, project RBAC, filtered cursor pagination, quotas/rate limiting, AES-GCM wrapped key rotation/restart recovery and missing-key fail-closed, Ed25519 checkpoint signatures, event sequence/causality/hash chain, automatic failure-to-DLQ, due retry processing, DLQ/backoff/replay, worker leases/graceful stop, retention/archive restore, tenant backup drills, plugin contracts/capabilities, metrics/health, property-generated events, rollback chaos");
 }finally{await rm(dir,{recursive:true,force:true});}
