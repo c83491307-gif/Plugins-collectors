@@ -22,6 +22,8 @@ const EMPTY_STATE = () => ({schema:1,projects:{}});
 export class CEPXPostgresStore {
  constructor({pool,namespace="default",lockKey=0x43455058}={}){
   if(!pool || typeof pool.connect!=="function") throw Error("CEPX_POSTGRES_POOL_REQUIRED");
+  if(typeof namespace!=="string"||!namespace.trim())throw Error("CEPX_POSTGRES_NAMESPACE_REQUIRED");
+  if(!Number.isInteger(lockKey))throw Error("CEPX_POSTGRES_LOCK_KEY_INVALID");
   this.pool=pool;this.namespace=namespace;this.lockKey=lockKey;this.migrationPromise=null;
  }
  async migrate(){
