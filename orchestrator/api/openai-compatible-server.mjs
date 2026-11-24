@@ -29,6 +29,10 @@ if(req.url?.startsWith("/api/cepx/")){
  if(a[0]==="projects"&&a.length===3&&a[2]==="handoff"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");await enterprise.getProject(tenantId,userId,a[1]);return json(res,200,await runtime.cepx.handoff(a[1],p));}
  if(a[0]==="context"&&a[1]==="compress"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,runtime.cepx.compress(p.input,p));}
  if(a[0]==="tenants"&&a.length===1&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");enterprise.authorize(state,tenantId,userId,"manage");return json(res,201,await enterprise.createTenant(p.id,p));}
+ if(a[0]==="plugins"&&a.length===1&&m==="GET")return json(res,200,{items:await enterprise.listTenantPluginContracts(tenantId,userId)});
+ if(a[0]==="plugins"&&a.length===1&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,201,{plugin:await enterprise.registerTenantPluginContract(tenantId,userId,p.id,p)});}
+ if(a[0]==="plugins"&&a.length===3&&a[2]==="enable"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");const caps=JSON.parse(process.env.CEPX_HOST_CAPABILITIES??"[]");return json(res,200,{plugin:await enterprise.setTenantPluginEnabled(tenantId,userId,a[1],true,caps)});}
+ if(a[0]==="plugins"&&a.length===3&&a[2]==="disable"&&m==="POST")return json(res,200,{plugin:await enterprise.setTenantPluginEnabled(tenantId,userId,a[1],false,[])});
  if(a[0]==="events"&&a.length===1&&m==="GET"){enterprise.authorize(state,tenantId,userId,"read");const events=(state.events??[]).filter(e=>e.tenantId===tenantId);const limit=Math.min(100,Math.max(1,Number(u.searchParams.get("limit")??25)));return json(res,200,{items:events.slice(-limit).reverse(),total:events.length});}
  if(a[0]==="events"&&a[1]==="verify"&&m==="GET")return json(res,200,await enterprise.verifyEvents(tenantId));
  if(a[0]==="backup"&&m==="GET")return json(res,200,await enterprise.backup(tenantId,userId));
@@ -61,6 +65,6 @@ if(req.url==="/v1/chat/completions"&&req.method==="POST"){
   return json(res,200,result.result);
 }
 return json(res,404,{error:{message:"Not found"}});
-}catch(e){json(res,e.code==="RATE_LIMIT"?429:e.code==="UNAUTHORIZED"?401:e.code==="INVALID_CREDENTIAL"?400:e.code==="NO_AVAILABLE_CONNECTION"?503:500,{error:{message:String(e.message||e),code:e.code||"ERROR"}});}}).listen(port);}
+}catch(e){json(res,e.code==="RATE_LIMIT"||e.code==="CEPX_RATE_LIMITED"?429:e.code==="UNAUTHORIZED"?401:e.code==="CEPX_FORBIDDEN"||e.code==="CEPX_ACCESS_DENIED"||e.code==="CEPX_PRINCIPAL_REQUIRED"?403:e.code==="PROJECT_NOT_FOUND"||e.code==="PLUGIN_CONTRACT_NOT_FOUND"?404:e.code==="INVALID_CREDENTIAL"||e.code==="PLUGIN_CONTRACT_INVALID"||e.code==="PLUGIN_CAPABILITY_MISMATCH"?400:e.code==="NO_AVAILABLE_CONNECTION"?503:500,{error:{message:String(e.message||e),code:e.code||"ERROR"}});}}).listen(port);}
 function json(res,status,body){res.writeHead(status,{"content-type":"application/json","cache-control":"no-store"});res.end(JSON.stringify(body));}
 function readBody(req){return new Promise((resolve,reject)=>{let s="";req.on("data",c=>{s+=c;if(s.length>10*1024*1024)reject(new Error("BODY_TOO_LARGE"));});req.on("end",()=>resolve(s));req.on("error",reject);});}
