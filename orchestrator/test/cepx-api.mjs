@@ -21,6 +21,7 @@ try{
  assert.equal(response.status,201);const task=await response.json();assert.equal(task.created,true);
  response=await fetch(url+"/api/cepx/projects/api-project/checkpoint",{method:"POST",headers,body:JSON.stringify({reason:"api test"})});
  assert.equal(response.status,201,await response.clone().text());
+ response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.equal(eventData.total,2,"project and task events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.created");
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
  response=await fetch(url+"/ui/cepx.html");assert.equal(response.status,200);assert.match(await response.text(),/CEPX Control Center/);
