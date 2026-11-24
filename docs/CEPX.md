@@ -72,3 +72,33 @@ node cepx/migrate-json-to-postgres.mjs --file ./data/cepx/projects.json --namesp
 ```
 
 The PostgreSQL integration suite verifies preview non-mutation, exact backup/source preservation, source/target checksum equality, idempotent retries, and refusal to overwrite a populated conflicting namespace under Node 20 and Node 22.
+
+
+## Enterprise isolation and operations (schema v2)
+
+The CEPX enterprise extension is in `orchestrator/cepx/enterprise.mjs` and is attached as `runtime.cepx.enterprise`. `CEPX.ready()` applies the idempotent v1→v2 state migration for both JSON and PostgreSQL stores. It preserves existing projects and adds tenant membership, event, quota, archive, lease, DLQ, encryption-key and plugin-contract metadata.
+
+- **Tenant boundary / project RBAC:** projects carry a tenant ID; project reads, task listing/writes, checkpoints and backup/archive operations verify tenant ownership and roles. Roles are owner, admin, editor and viewer. The CEPX HTTP API resolves identities from `CEPX_API_PRINCIPALS` (JSON map keyed by bearer token, each value containing `tenantId` and `userId`). The legacy single `CEPX_API_TOKEN` remains a compatibility owner for the default tenant; do not reuse that shared token across tenants.
+- **Schema versioning:** state has `schemaVersion`; v1→v2 is repeatable and refuses future versions.
+- **Encryption and rotation:** AES-256-GCM envelopes are tenant-bound and carry key versions. Rotation retains prior key versions for decrypting existing records. Set a stable `CEPX_MASTER_KEY` (or `APP_MASTER_KEY`) before production use; an ephemeral fallback key is not suitable for restart-safe production encryption.
+- **Signed recovery points:** Ed25519 signatures cover canonical checkpoint content. Verification failure marks the checkpoint invalid; signed restore verifies before applying.
+- **Retention/archive:** archive records contain checksums and retention deadlines. Retention evaluation marks eligible archives but deliberately preserves evidence; deletion is not automatic.
+- **Event sequencing:** tenant-scoped sequence numbers, correlation/causation IDs and a SHA-256 hash chain support gap/tamper checks.
+- **DLQ and retries:** failed task envelopes retain attempt count, error and capped exponential-backoff schedule; replay is explicit and status-tracked.
+- **Worker leases:** lease tokens and expiry prevent concurrent claims for the same tenant/project/task. Scheduler stop rejects new claims and reports whether active leases have drained.
+- **Observability:** runtime health and operation/latency samples are exposed by the enterprise service; this is an in-process baseline, not an external OpenTelemetry exporter.
+- **Pagination / quotas:** tenant-scoped cursor pagination supports task status/search and project search/sort. Per-tenant task quotas and rolling one-minute request limits reject excess use.
+- **Backup/restore:** tenant-scoped snapshots include a checksum and restore refuses cross-tenant project collisions. Backup drill verifies the restore path; persist backup artifacts outside the primary store for disaster recovery.
+- **Property/chaos verification:** deterministic generated event sequences check chain invariants; injected transaction failure verifies rollback.
+- **Plugin contracts:** version/API metadata and required capabilities must negotiate successfully before a contract can be enabled.
+
+The CEPX API now uses tenant-aware service methods for project creation/list/read, task create/list/transition, signed checkpoints/recovery, and handoff. Configure multiple principals using a JSON object such as:
+
+```json
+{
+  "token-for-tenant-a": {"tenantId":"tenant-a","userId":"alice"},
+  "token-for-tenant-b": {"tenantId":"tenant-b","userId":"bob"}
+}
+```
+
+Tenant memberships must be provisioned before those principals can access projects. Do not put real bearer tokens in source control. Run `npm run cepx` to include the enterprise isolation and chaos/property suite in both Node 20 and Node 22 CI jobs.
