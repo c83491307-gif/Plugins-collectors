@@ -122,3 +122,10 @@ The main CEPX workspace includes a contract registry. `GET /api/cepx/plugins` li
 This is a metadata/contract registry only. It does not download, install, load, sandbox, or execute plugin code, and advertised capabilities do not grant operating-system permissions. A future execution runtime must separately implement signed artifact verification, capability enforcement, sandbox isolation, resource limits, and audit trails before third-party code can run.
 
 The API integration suite covers contract registration, capability-gated enabling, tenant isolation, and viewer write denial. Configure `CEPX_HOST_CAPABILITIES` on the server as a JSON array of capabilities intentionally supported by that host; keep it minimal.
+
+
+## Tenant administration and quotas
+
+The main CEPX workspace exposes tenant administration for users with the `manage` permission. `GET /api/cepx/admin` returns the current tenant, its member roles and task/request quotas. `POST /api/cepx/members` grants or updates a tenant member role; `DELETE /api/cepx/members/:userId` revokes membership. `PUT /api/cepx/quota` updates task and rolling requests-per-minute limits. Membership and quota operations require tenant-level manage permission. A tenant cannot demote or revoke its last owner; the API returns HTTP 409 for this conflict. Changes append tenant-scoped audit events. The UI intentionally does not display or modify API bearer tokens or database credentials.
+
+The API suite verifies owner administration, editor grants, quota updates, tenant boundaries, and that viewer principals cannot modify members or quotas.
