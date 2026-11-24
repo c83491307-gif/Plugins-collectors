@@ -1,15 +1,66 @@
 import {createHash, randomUUID} from "node:crypto";
-import {mkdir,readFile,rename,writeFile} from "node:fs/promises";
-import {dirname} from "node:path";
+import {mkdir,readFile,rename,writeFile,rm,stat,utimes,open} from "node:fs/promises";
+import {dirname,hostname} from "node:path";
+import {setTimeout as delay} from "node:timers/promises";
+import {isAbsolute} from "node:path";
 const hash=v=>createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const clone=v=>structuredClone(v);
 const allowed={pending:["running","blocked","cancelled"],running:["completed","failed","blocked","pending"],failed:["pending","running","cancelled"],blocked:["pending","running","cancelled"],completed:[],cancelled:[]};
 export class CEPX {
- constructor({file="./data/cepx/projects.json",clock=()=>Date.now()}={}){this.file=file;this.clock=clock;this.queue=Promise.resolve();this.tools=new Map();this.health=new Map();}
- async #read(){await mkdir(dirname(this.file),{recursive:true});try{const x=JSON.parse(await readFile(this.file,"utf8"));if(x.schema!==1||!x.projects)throw Error("CEPX_STATE_CORRUPT");return x;}catch(e){if(e.code==="ENOENT")return {schema:1,projects:{}};throw e;}}
- async #write(x){const tmp=this.file+"."+process.pid+".tmp";await writeFile(tmp,JSON.stringify(x,null,2),{mode:0o600});await rename(tmp,this.file);}
- async #tx(fn){const p=this.queue.then(async()=>{const s=await this.#read(),v=await fn(s);await this.#write(s);return clone(v);});this.queue=p.catch(()=>{});return p;}
- async list(){await this.queue;return Object.values((await this.#read()).projects);}
+ constructor({file="./data/cepx/projects.json",clock=()=>Date.now(),lockTimeoutMs=15000,lockLeaseMs=30000,lockRetryMs=25}={}){
+  this.file=file;this.clock=clock;this.queue=Promise.resolve();this.tools=new Map();this.health=new Map();
+  this.lockDir=file+".lock";this.lockTimeoutMs=lockTimeoutMs;this.lockLeaseMs=lockLeaseMs;this.lockRetryMs=lockRetryMs;this.host=hostname();
+ }
+ async #read(){await mkdir(dirname(this.file),{recursive:true});try{const x=JSON.parse(await readFile(this.file,"utf8"));if(x.schema!==1||!x.projects||typeof x.projects!=="object")throw Error("CEPX_STATE_CORRUPT");return x;}catch(e){if(e.code==="ENOENT")return {schema:1,projects:{}};throw e;}}
+ async #write(x){
+  const tmp=this.file+"."+process.pid+"."+randomUUID()+".tmp";
+  let f;try{f=await open(tmp,"wx",0o600);await f.writeFile(JSON.stringify(x,null,2));await f.sync();await f.close();f=null;await rename(tmp,this.file);try{const dir=await open(dirname(this.file),"r");await dir.sync();await dir.close();}catch{}}
+  finally{if(f)await f.close().catch(()=>{});await rm(tmp,{force:true}).catch(()=>{});}
+ }
+ async #lockOwner(){try{return JSON.parse(await readFile(this.lockDir+"/owner.json","utf8"));}catch{return null;}}
+ async #alive(owner){
+  if(!owner||owner.host!==this.host||!Number.isInteger(owner.pid))return false;
+  try{process.kill(owner.pid,0);return true;}catch(e){return e.code==="EPERM";}
+ }
+ async #breakStale(){
+  let info;try{info=await stat(this.lockDir);}catch(e){if(e.code==="ENOENT")return true;throw e;}
+  const owner=await this.#lockOwner(), age=this.clock()-info.mtimeMs;
+  if(await this.#alive(owner))return false;
+  if(age<this.lockLeaseMs)return false;
+  const tomb=this.lockDir+".stale."+randomUUID();
+  try{await rename(this.lockDir,tomb);await rm(tomb,{recursive:true,force:true});return true;}
+  catch(e){if(e.code==="ENOENT"||e.code==="EEXIST")return true;throw e;}
+ }
+ async #acquire(){
+  const started=this.clock(),token=randomUUID();
+  await mkdir(dirname(this.file),{recursive:true});
+  for(let attempt=0;;attempt++){
+   try{
+    await mkdir(this.lockDir);
+    const owner={token,pid:process.pid,host:this.host,createdAt:this.clock(),heartbeatAt:this.clock()};
+    try{await writeFile(this.lockDir+"/owner.json",JSON.stringify(owner),{flag:"wx",mode:0o600});}
+    catch(e){await rm(this.lockDir,{recursive:true,force:true});throw e;}
+    let stopped=false,busy=false;
+    const heartbeat=setInterval(async()=>{if(stopped||busy)return;busy=true;try{const current=await this.#lockOwner();if(current?.token!==token){stopped=true;return;}current.heartbeatAt=this.clock();await writeFile(this.lockDir+"/owner.json",JSON.stringify(current),{mode:0o600});const now=new Date();await utimes(this.lockDir,now,now);}catch{}finally{busy=false;}},Math.max(250,Math.floor(this.lockLeaseMs/3)));
+    heartbeat.unref?.();
+    return async()=>{stopped=true;clearInterval(heartbeat);const current=await this.#lockOwner();if(current?.token===token)await rm(this.lockDir,{recursive:true,force:true});};
+   }catch(e){
+    if(e.code!=="EEXIST")throw e;
+    await this.#breakStale();
+    if(this.clock()-started>=this.lockTimeoutMs)throw Object.assign(Error("CEPX_LOCK_TIMEOUT"),{code:"CEPX_LOCK_TIMEOUT"});
+    await delay(Math.min(250,this.lockRetryMs*(1+Math.floor(attempt/4))));
+   }
+  }
+ }
+ async #tx(fn){
+  const p=this.queue.then(async()=>{
+   const release=await this.#acquire();
+   try{const state=await this.#read(),value=await fn(state);await this.#write(state);return clone(value);}
+   finally{await release();}
+  });
+  this.queue=p.catch(()=>{});return p;
+ }
+ async list(){await this.queue;return Object.values((await this.#read()).projects).map(clone);}
  async get(id){await this.queue;const p=(await this.#read()).projects[id];return p?clone(p):null;}
  async ensureProject(id,meta={}){if(!id)throw Error("PROJECT_ID_REQUIRED");return this.#tx(s=>s.projects[id]??(s.projects[id]={id,name:meta.name??id,goal:meta.goal??"",rules:[],decisions:[],blockers:[],tasks:[],checkpoints:[],createdAt:this.clock(),updatedAt:this.clock()}));}
  async updateProject(id,patch){return this.#tx(s=>{const p=s.projects[id];if(!p)throw Error("PROJECT_NOT_FOUND");Object.assign(p,clone(patch),{updatedAt:this.clock()});return p;});}
@@ -20,6 +71,6 @@ export class CEPX {
  async inspect(id){const p=await this.get(id);if(!p)throw Error("PROJECT_NOT_FOUND");return (p.checkpoints??[]).map(c=>({id:c.id,at:c.at,reason:c.reason,valid:hash(c.data)===c.checksum}));}
  async restore(id,checkpointId){return this.#tx(s=>{const p=s.projects[id];if(!p)throw Error("PROJECT_NOT_FOUND");const c=[...p.checkpoints].reverse().find(x=>(!checkpointId||x.id===checkpointId)&&hash(x.data)===x.checksum);if(!c)throw Error("NO_VALID_CHECKPOINT");const history=p.checkpoints;Object.assign(p,clone(c.data.project),{checkpoints:history,recoveredFrom:c.id,updatedAt:this.clock()});return p;});}
  registerTool({id,run,priority=100}){if(!id||typeof run!=="function"||this.tools.has(id))throw Error("INVALID_TOOL");this.tools.set(id,{id,run,priority});this.health.set(id,{failures:0,openedAt:0});}
- async execute(input,{timeoutMs=15000,retries=1,cooldownMs=30000}={}){const attempts=[];for(const t of [...this.tools.values()].sort((a,b)=>a.priority-b.priority)){const h=this.health.get(t.id);if(h.openedAt&&this.clock()-h.openedAt<cooldownMs){attempts.push({tool:t.id,status:"circuit-open"});continue;}for(let n=0;n<=retries;n++){let timer;try{const result=await Promise.race([Promise.resolve().then(()=>t.run(input)),new Promise((_,rej)=>timer=setTimeout(()=>rej(Object.assign(Error("TOOL_TIMEOUT"),{code:"TIMEOUT"})),timeoutMs))]);clearTimeout(timer);h.failures=0;h.openedAt=0;return {provider:t.id,result,attempts:[...attempts,{tool:t.id,status:"success"}]};}catch(e){clearTimeout(timer);h.failures++;h.openedAt=this.clock();attempts.push({tool:t.id,status:"failed",error:String(e.message??e)});if(n<retries&&["429","500","502","503","504","TIMEOUT","ECONNRESET"].some(x=>String(e.code??e.message).includes(x)))await new Promise(r=>setTimeout(r,100*(n+1)));else break;}}}const e=Error("ALL_TOOLS_FAILED");e.attempts=attempts;throw e;}
+ async execute(input,{timeoutMs=15000,retries=1,cooldownMs=30000}={}){const attempts=[];for(const t of [...this.tools.values()].sort((a,b)=>a.priority-b.priority)){const h=this.health.get(t.id);if(h.openedAt&&this.clock()-h.openedAt<cooldownMs){attempts.push({tool:t.id,status:"circuit-open"});continue;}for(let n=0;n<=retries;n++){let timer;try{const result=await Promise.race([Promise.resolve().then(()=>t.run(input)),new Promise((_,rej)=>timer=setTimeout(()=>rej(Object.assign(Error("TOOL_TIMEOUT"),{code:"TIMEOUT"})),timeoutMs))]);clearTimeout(timer);h.failures=0;h.openedAt=0;return {provider:t.id,result,attempts:[...attempts,{tool:t.id,status:"success"}]};}catch(e){clearTimeout(timer);h.failures++;h.openedAt=this.clock();attempts.push({tool:t.id,status:"failed",error:String(e.message??e)});if(n<retries&&["429","500","502","503","504","TIMEOUT","ECONNRESET"].some(x=>String(e.code??e.message).includes(x)))await delay(100*(n+1));else break;}}}const e=Error("ALL_TOOLS_FAILED");e.attempts=attempts;throw e;}
  async handoff(id,{maxChars=12000}={}){const p=await this.get(id);if(!p)throw Error("PROJECT_NOT_FOUND");const handoff=this.compress({project:p.name,goal:p.goal,rules:p.rules,decisions:p.decisions,activeTask:p.active,currentState:p.currentState,blockers:p.blockers,nextActions:p.tasks.filter(t=>!["completed","cancelled"].includes(t.status)).map(t=>t.title+" ["+t.status+"]"),completed:p.tasks.filter(t=>t.status==="completed").map(t=>t.title)},{maxChars});await this.updateProject(id,{handoff,updatedAt:this.clock()});return handoff;}
 }
