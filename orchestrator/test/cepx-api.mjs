@@ -24,6 +24,17 @@ try{
  response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.equal(eventData.total,2,"project and task events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.created");
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
+ process.env.CEPX_HOST_CAPABILITIES=JSON.stringify(["tenant-context","rbac"]);
+ response=await fetch(url+"/api/cepx/plugins",{method:"POST",headers,body:JSON.stringify({id:"sample-plugin",version:"1.0.0",capabilities:["tasks"],requiredCapabilities:["tenant-context","rbac"]})});
+ assert.equal(response.status,201);assert.equal((await response.json()).plugin.enabled,false);
+ response=await fetch(url+"/api/cepx/plugins/sample-plugin/enable",{method:"POST",headers,body:"{}"});assert.equal(response.status,200);assert.equal((await response.json()).plugin.enabled,true);
+ response=await fetch(url+"/api/cepx/plugins",{headers});assert.equal(response.status,200);assert.equal((await response.json()).items.length,1);
+ await runtime.cepx.enterprise.createTenant("viewer-tenant",{name:"Viewer tenant"});await runtime.cepx.enterprise.grant("viewer-tenant","reader","viewer");
+ process.env.CEPX_API_PRINCIPALS=JSON.stringify({"viewer-token":{"tenantId":"viewer-tenant","userId":"reader"}});
+ const viewerHeaders={"content-type":"application/json",authorization:"Bearer viewer-token"};
+ response=await fetch(url+"/api/cepx/plugins",{headers:viewerHeaders});assert.equal(response.status,200);assert.equal((await response.json()).items.length,0,"plugin contracts are tenant isolated");
+ response=await fetch(url+"/api/cepx/plugins",{method:"POST",headers:viewerHeaders,body:JSON.stringify({id:"blocked-plugin",version:"1.0.0"})});assert.equal(response.status,403,"viewer cannot register plugins");
+ delete process.env.CEPX_API_PRINCIPALS;delete process.env.CEPX_HOST_CAPABILITIES;
  response=await fetch(url+"/api/cepx/health",{headers});assert.equal(response.status,200);assert.equal((await response.json()).status,"ok");
  response=await fetch(url+"/api/cepx/backup",{headers});assert.equal(response.status,200);const backup=await response.json();assert.equal(backup.tenantId,"default");assert.ok(backup.checksum);
  response=await fetch(url+"/ui/");assert.equal(response.status,200);const mainUi=await response.text();assert.match(mainUi,/data-view="cepx"/);assert.match(mainUi,/cepx-dashboard.js/);
@@ -33,7 +44,7 @@ try{
  const dependent=await restarted.enqueue("api-project",{title:"dependent",dependsOn:[task.task.id]});assert.equal(dependent.created,true);await assert.rejects(()=>restarted.transition("api-project",dependent.task.id,"running"),/DEPENDENCIES_INCOMPLETE/);
  response=await fetch(url+"/api/cepx/context/compress",{method:"POST",headers,body:JSON.stringify({input:{project:"api-project",goal:"persist",rules:["no secrets"]},maxChars:512})});
  assert.equal(response.status,200);assert.ok((await response.json()).checksum);
- console.log("CEPX API tests PASS: bearer auth, project CRUD, task ledger, checkpoint inspection, context compression");
+ console.log("CEPX API tests PASS: bearer auth, project CRUD, task ledger, signed checkpoints, tenant event feed, plugin registry/capability negotiation/RBAC, backup, health, main UI integration, context compression");
 }finally{
  await new Promise(resolve=>server.close(resolve));
  if(prior===undefined)delete process.env.CEPX_API_TOKEN;else process.env.CEPX_API_TOKEN=prior;
