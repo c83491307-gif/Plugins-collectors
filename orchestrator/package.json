@@ -23,6 +23,6 @@
     "account-failover": "node test/account-failover.mjs",
     "provider-stack": "npm run provider-runtime && npm run provider-sync-rotation && npm run account-failover",
     "verify:all": "npm run verify:syntax && npm run smoke && npm run provider-stack && npm run verify:targeted && npm run verify:stress && npm run cepx",
-    "cepx": "node test/cepx.mjs"
+    "cepx": "node test/cepx.mjs && node test/cepx-api.mjs"
   }
 }
