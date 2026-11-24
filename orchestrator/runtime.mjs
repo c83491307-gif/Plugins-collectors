@@ -45,6 +45,7 @@ import {KnowledgeBase} from "./ai/knowledge-base.mjs";
 import {IntentRouter} from "./ai/intent-router.mjs";
 import {ModelRouter} from "./ai/model-router.mjs";
 import {BackupManager} from "./storage/backup-manager.mjs";
+import {CEPX} from "./cepx/index.mjs";
 
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
@@ -64,6 +65,7 @@ export function createRuntime(config={}){
  runtime.webhooks=new WebhookGateway({secret:config.webhookSecret??process.env.WEBHOOK_SECRET}); runtime.connectors=new ConnectorRegistry();
  runtime.rbac=new TenantRBAC(); runtime.secrets=new SecretVault({masterKey:config.masterKey??process.env.APP_MASTER_KEY}); runtime.budgets=new BudgetManager(); runtime.queue=new DurableQueue(config.queue);
  runtime.providerHealth=new ProviderHealth(config.providerHealth); runtime.knowledgeBase=new KnowledgeBase(); runtime.intent=new IntentRouter(); runtime.models=new ModelRouter(); runtime.backups=new BackupManager();
+ runtime.cepx=new CEPX({file:config.cepx?.file??process.env.CEPX_STATE_FILE??"./data/cepx/projects.json"});
  events.on("campaign.sent",e=>runtime.analytics.track?.("sent",e)); events.on("campaign.delivered",e=>runtime.analytics.track?.("delivered",e)); events.on("campaign.read",e=>runtime.analytics.track?.("read",e)); events.on("campaign.replied",e=>runtime.analytics.track?.("replied",e));
  return runtime;
 }
