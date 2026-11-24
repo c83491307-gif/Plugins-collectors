@@ -8,11 +8,13 @@ const hash=v=>createHash("sha256").update(JSON.stringify(v)).digest("hex");
 const clone=v=>structuredClone(v);
 const allowed={pending:["running","blocked","cancelled"],running:["completed","failed","blocked","pending"],failed:["pending","running","cancelled"],blocked:["pending","running","cancelled"],completed:[],cancelled:[]};
 export class CEPX {
- constructor({file="./data/cepx/projects.json",clock=()=>Date.now(),lockTimeoutMs=15000,lockLeaseMs=30000,lockRetryMs=25}={}){
-  this.file=file;this.clock=clock;this.queue=Promise.resolve();this.tools=new Map();this.health=new Map();
+ constructor({file="./data/cepx/projects.json",clock=()=>Date.now(),lockTimeoutMs=15000,lockLeaseMs=30000,lockRetryMs=25,store=null}={}){
+  this.file=file;this.store=store;this.clock=clock;this.queue=Promise.resolve();this.tools=new Map();this.health=new Map();
   this.lockDir=file+".lock";this.lockTimeoutMs=lockTimeoutMs;this.lockLeaseMs=lockLeaseMs;this.lockRetryMs=lockRetryMs;this.host=hostname();
  }
- async #read(){await mkdir(dirname(this.file),{recursive:true});try{const x=JSON.parse(await readFile(this.file,"utf8"));if(x.schema!==1||!x.projects||typeof x.projects!=="object")throw Error("CEPX_STATE_CORRUPT");return x;}catch(e){if(e.code==="ENOENT")return {schema:1,projects:{}};throw e;}}
+ async ready(){if(this.store?.migrate)await this.store.migrate();return this;}
+ async close(){if(this.store?.close)await this.store.close();}
+ async #read(){if(this.store)return this.store.read();await mkdir(dirname(this.file),{recursive:true});try{const x=JSON.parse(await readFile(this.file,"utf8"));if(x.schema!==1||!x.projects||typeof x.projects!=="object")throw Error("CEPX_STATE_CORRUPT");return x;}catch(e){if(e.code==="ENOENT")return {schema:1,projects:{}};throw e;}}
  async #write(x){
   const tmp=this.file+"."+process.pid+"."+randomUUID()+".tmp";
   let f;try{f=await open(tmp,"wx",0o600);await f.writeFile(JSON.stringify(x));await f.sync();await f.close();f=null;await rename(tmp,this.file);try{const dir=await open(dirname(this.file),"r");await dir.sync();await dir.close();}catch{}}
@@ -55,6 +57,7 @@ export class CEPX {
  }
  async #tx(fn){
   const p=this.queue.then(async()=>{
+   if(this.store)return clone(await this.store.transaction(fn));
    const release=await this.#acquire();
    try{const state=await this.#read(),value=await fn(state);await this.#write(state);return clone(value);}
    finally{await release();}
