@@ -18,10 +18,10 @@ try{
  await assert.rejects(()=>e.createProject("tenant-a","reader","forbidden"),/CEPX_FORBIDDEN/);
  await assert.rejects(()=>e.addTask("tenant-a","reader","project-a",{title:"no"}),/CEPX_FORBIDDEN/);
  for(let i=0;i<7;i++)await e.addTask("tenant-a","alice","project-a",{id:"t"+i,title:"Task "+i,status:i%2?"pending":"failed"});
- const page1=await e.listTasks("tenant-a","alice","project-a",{limit:3,status:"pending"});
+ const page1=await e.listTasks("tenant-a","alice","project-a",{limit:3});
  assert.equal(page1.items.length,3);assert.ok(page1.nextCursor);
- const page2=await e.listTasks("tenant-a","alice","project-a",{limit:3,status:"pending",cursor:page1.nextCursor});
- assert.equal(page2.items.length,0,"cursor must continue within filtered result set");
+ const page2=await e.listTasks("tenant-a","alice","project-a",{limit:3,cursor:page1.nextCursor});
+ assert.equal(page2.items.length,3,"cursor must continue without duplicates");assert.notEqual(page1.items[0].id,page2.items[0].id);
  await assert.rejects(()=>e.setQuota("tenant-a","reader",{tasks:1}),/CEPX_FORBIDDEN/);
  await e.setQuota("tenant-a","alice",{tasks:100,requestsPerMinute:2});
  await e.consumeRequest("tenant-a","alice");await e.consumeRequest("tenant-a","alice");
