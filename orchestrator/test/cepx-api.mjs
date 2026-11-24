@@ -24,6 +24,10 @@ try{
  response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.equal(eventData.total,2,"project and task events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.created");
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
+ response=await fetch(url+"/api/cepx/health",{headers});assert.equal(response.status,200);assert.equal((await response.json()).status,"ok");
+ response=await fetch(url+"/api/cepx/backup",{headers});assert.equal(response.status,200);const backup=await response.json();assert.equal(backup.tenantId,"default");assert.ok(backup.checksum);
+ response=await fetch(url+"/ui/");assert.equal(response.status,200);const mainUi=await response.text();assert.match(mainUi,/data-view="cepx"/);assert.match(mainUi,/cepx-dashboard.js/);
+ response=await fetch(url+"/ui/cepx-dashboard.js");assert.equal(response.status,200);assert.match(await response.text(),/verifyEvents/);
  response=await fetch(url+"/ui/cepx.html");assert.equal(response.status,200);assert.match(await response.text(),/CEPX Control Center/);
  const {CEPX}=await import("../cepx/index.mjs");const restarted=new CEPX({file:join(dir,"state.json")});assert.equal((await restarted.get("api-project")).tasks.length,1,"state survives engine re-instantiation");
  const dependent=await restarted.enqueue("api-project",{title:"dependent",dependsOn:[task.task.id]});assert.equal(dependent.created,true);await assert.rejects(()=>restarted.transition("api-project",dependent.task.id,"running"),/DEPENDENCIES_INCOMPLETE/);
