@@ -3,7 +3,7 @@ import {createHash} from "node:crypto";
 const MIGRATIONS = [
  {version:1,name:"cepx_state_store",sql:`
   CREATE TABLE IF NOT EXISTS cepx_state (
-   id SMALLINT PRIMARY KEY CHECK (id = 1),
+   namespace TEXT PRIMARY KEY,
    state JSONB NOT NULL,
    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
@@ -20,9 +20,9 @@ const EMPTY_STATE = () => ({schema:1,projects:{}});
  * row locking, advisory serialization and durable commits.
  */
 export class CEPXPostgresStore {
- constructor({pool,lockKey=0x43455058}={}){
+ constructor({pool,namespace="default",lockKey=0x43455058}={}){
   if(!pool || typeof pool.connect!=="function") throw Error("CEPX_POSTGRES_POOL_REQUIRED");
-  this.pool=pool;this.lockKey=lockKey;this.migrationPromise=null;
+  this.pool=pool;this.namespace=namespace;this.lockKey=lockKey;this.migrationPromise=null;
  }
  async migrate(){
   if(this.migrationPromise)return this.migrationPromise;
@@ -50,7 +50,7 @@ export class CEPXPostgresStore {
  }
  async read(){
   await this.migrate();
-  const result=await this.pool.query("SELECT state FROM cepx_state WHERE id=1");
+  const result=await this.pool.query("SELECT state FROM cepx_state WHERE namespace=$1",[this.namespace]);
   if(!result.rowCount)return EMPTY_STATE();
   const state=result.rows[0].state;
   if(!state||state.schema!==1||!state.projects||typeof state.projects!=="object")throw Error("CEPX_STATE_CORRUPT");
@@ -68,8 +68,8 @@ export class CEPXPostgresStore {
    if(!state||state.schema!==1||!state.projects||typeof state.projects!=="object")throw Error("CEPX_STATE_CORRUPT");
    const value=await fn(state);
    await client.query(
-    "INSERT INTO cepx_state(id,state,updated_at) VALUES(1,$1::jsonb,NOW()) ON CONFLICT(id) DO UPDATE SET state=EXCLUDED.state, updated_at=EXCLUDED.updated_at",
-    [JSON.stringify(state)]
+    "INSERT INTO cepx_state(namespace,state,updated_at) VALUES($1,$2::jsonb,NOW()) ON CONFLICT(namespace) DO UPDATE SET state=EXCLUDED.state, updated_at=EXCLUDED.updated_at",
+    [this.namespace,JSON.stringify(state)]
    );
    await client.query("COMMIT");
    return value;
