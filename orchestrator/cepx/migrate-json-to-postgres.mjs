@@ -74,7 +74,7 @@ async function main(argv){
   args.set(key,value);i++;
  }
  const file=args.get("file"),databaseUrl=args.get("database-url")??process.env.CEPX_DATABASE_URL??process.env.CEPX_TEST_DATABASE_URL;
- if(!file||!databaseUrl)throw Error("Usage: node ce px/migrate-json-to-postgres.mjs --file <path> [--database-url <url>] [--namespace <name>] [--backup <path>] [--apply]");
+ if(!file||!databaseUrl)throw Error("Usage: node orchestrator/cepx/migrate-json-to-postgres.mjs --file <path> [--database-url <url>] [--namespace <name>] [--backup <path>] [--apply]");
  const {Pool}=await import("pg");
  const pool=new Pool({connectionString:databaseUrl,max:2});
  const store=new CEPXPostgresStore({pool,namespace:args.get("namespace")??"default"});
