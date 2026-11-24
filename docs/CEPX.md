@@ -113,3 +113,12 @@ Workspace tools include tenant-scoped project listing/creation, task creation an
 The dashboard reads the existing browser `creazzy.token` value (or legacy `cepx-token`) for CEPX API authentication. Configure `CEPX_API_TOKEN` and, for multi-tenant use, `CEPX_API_PRINCIPALS` on the server. The browser never receives database credentials. Backup export downloads a tenant-scoped JSON snapshot; operators must store it in a protected external location. This UI does not schedule off-host backups or expose plugin enablement until tenant-scoped plugin administration endpoints are implemented.
 
 The CEPX API integration test verifies the main UI entry point, dashboard asset, tenant-scoped event list, health and backup endpoints in addition to existing project/task/checkpoint behavior.
+
+
+## Tenant-scoped plugin contract registry
+
+The main CEPX workspace includes a contract registry. `GET /api/cepx/plugins` lists only contracts owned by the authenticated tenant; `POST /api/cepx/plugins` registers a contract with an ID, version, API version, advertised capabilities and required host capabilities. `POST /api/cepx/plugins/:id/enable` negotiates required capabilities against the server allow-list in `CEPX_HOST_CAPABILITIES` (JSON string array); `POST /api/cepx/plugins/:id/disable` disables the tenant's contract. Registration and enable/disable require the `plugins` permission (owner/admin by default); viewers cannot mutate registry entries. IDs are tenant-keyed to avoid cross-tenant collisions. Registry operations append tenant events.
+
+This is a metadata/contract registry only. It does not download, install, load, sandbox, or execute plugin code, and advertised capabilities do not grant operating-system permissions. A future execution runtime must separately implement signed artifact verification, capability enforcement, sandbox isolation, resource limits, and audit trails before third-party code can run.
+
+The API integration suite covers contract registration, capability-gated enabling, tenant isolation, and viewer write denial. Configure `CEPX_HOST_CAPABILITIES` on the server as a JSON array of capabilities intentionally supported by that host; keep it minimal.
