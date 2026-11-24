@@ -25,3 +25,11 @@ When CEPX_API_TOKEN is configured, all CEPX API requests require a matching Bear
 
 ## Verification detail
 `npm run cepx` runs both the engine unit/concurrency suite and authenticated HTTP API integration suite. CI runs this command in the Node 20/22 matrix after the existing syntax, targeted, provider, smoke and stress suites.
+
+## Distributed JSON backend (local shared filesystem)
+The JSON backend now coordinates transactions across Node processes using an exclusive lock directory adjacent to the state file. A transaction acquires the lock, reads the latest state, applies its mutation, writes a unique mode-0600 temporary file, fsyncs it, atomically renames it over the state file, and releases only the lock token it owns. A heartbeat refreshes the lease. Stale locks are reclaimed after the lease expires; a live owner on the same host is not reclaimed merely because its lease appears old.
+
+This provides cross-process serialization only when all participating processes access the same state path on a filesystem that reliably supports atomic directory creation and rename semantics. It is not a distributed consensus protocol and is not a safe multi-region/network-filesystem guarantee. For independent hosts or cloud-scale deployments, use a transactional shared database (for example PostgreSQL with row/advisory locks) or a Redis-backed coordination/state adapter; that adapter is not implemented in this stage. Set the same absolute CEPX_STATE_FILE path for every local worker. Monitor lock timeouts and disk capacity, and keep backups outside the live state path.
+
+## Distributed verification
+`npm run cepx` also launches four independent Node worker processes against one shared state file. The suite checks 80 distinct concurrent task writes, cross-process idempotency for a shared task, checkpoint creation, and recovery from an expired dead-owner lock. The same suite runs in the Node 20 and Node 22 CI matrix.
