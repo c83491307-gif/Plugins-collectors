@@ -47,6 +47,7 @@ import {ModelRouter} from "./ai/model-router.mjs";
 import {BackupManager} from "./storage/backup-manager.mjs";
 import {CEPX} from "./cepx/index.mjs";
 import {CEPXPostgresStore} from "./cepx/postgres-store.mjs";
+import {CEPXEnterprise} from "./cepx/enterprise.mjs";
 
 export function createRuntime(config={}){
  const registry=new ModelRegistry(); const policy=new RoutingPolicy(config.routing); const router=new CapabilityRouter(registry); router.policy=policy;
@@ -70,6 +71,7 @@ export function createRuntime(config={}){
  const cePxStore=cePxConfig.store??(cePxConfig.pool?new CEPXPostgresStore({pool:cePxConfig.pool,namespace:cePxConfig.namespace,lockKey:cePxConfig.lockKey}):null);
  if(cePxConfig.backend==="postgres"&&!cePxStore)throw Error("CEPX_POSTGRES_POOL_REQUIRED: use createRuntimeAsync or pass cePx.pool");
  runtime.cepx=new CEPX({file:cePxConfig.file??process.env.CEPX_STATE_FILE??"./data/cepx/projects.json",store:cePxStore});
+ runtime.cepx.enterprise=new CEPXEnterprise(runtime.cepx,{masterKey:config.masterKey??process.env.CEPX_MASTER_KEY??process.env.APP_MASTER_KEY});
  events.on("campaign.sent",e=>runtime.analytics.track?.("sent",e)); events.on("campaign.delivered",e=>runtime.analytics.track?.("delivered",e)); events.on("campaign.read",e=>runtime.analytics.track?.("read",e)); events.on("campaign.replied",e=>runtime.analytics.track?.("replied",e));
  return runtime;
 }
