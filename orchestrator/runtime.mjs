@@ -81,8 +81,9 @@ export function createRuntime(config={}){
  */
 export async function createRuntimeAsync(config={}){
  const cePxConfig=config.cepx??{};
- if(cePxConfig.backend!=="postgres"&&!cePxConfig.databaseUrl&&!process.env.CEPX_DATABASE_URL&&!process.env.DATABASE_URL)return createRuntime(config);
- const databaseUrl=cePxConfig.databaseUrl??process.env.CEPX_DATABASE_URL??process.env.DATABASE_URL;
+ if(cePxConfig.backend!=="postgres"&&!cePxConfig.databaseUrl&&!process.env.CEPX_DATABASE_URL)return createRuntime(config);
+ const databaseUrl=cePxConfig.databaseUrl??process.env.CEPX_DATABASE_URL;
+ if(!databaseUrl&&!cePxConfig.pool)throw Error("CEPX_DATABASE_URL_REQUIRED");
  const {Pool}=await import("pg");
  const pool=cePxConfig.pool??new Pool({connectionString:databaseUrl,max:cePxConfig.maxConnections??10,connectionTimeoutMillis:cePxConfig.connectionTimeoutMillis??5000});
  const runtime=createRuntime({...config,cepx:{...cePxConfig,backend:"postgres",pool}});
