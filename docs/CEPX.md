@@ -33,3 +33,9 @@ This provides cross-process serialization only when all participating processes 
 
 ## Distributed verification
 `npm run cepx` also launches four independent Node worker processes against one shared state file. The suite checks 80 distinct concurrent task writes, cross-process idempotency for a shared task, checkpoint creation, and recovery from an expired dead-owner lock. The same suite runs in the Node 20 and Node 22 CI matrix.
+
+## Performance work
+The JSON writer now emits compact JSON to reduce serialization and disk I/O overhead. `enqueueMany(projectId, items)` adds a set of tasks in one locked read-modify-write transaction, preserving fingerprint idempotency and dependency validation while avoiding one full state rewrite per task. The existing single-task `enqueue` API remains unchanged.
+
+## Performance benchmark and guardrails
+Run `npm run cepx` to execute the performance benchmark after the engine, API, and multiprocess suites. The benchmark creates a temporary state directory, compares sequential single-task ingestion with atomic batch ingestion, samples p50/p95/max latency for reads and context compression, records checkpoint latency, state-file size, heap use and event-loop delay, validates resulting task counts, and removes its temporary data. CI executes it under both Node 20 and Node 22. Benchmark output is diagnostic evidence, not a cross-machine performance SLA; absolute timing varies by runner and filesystem. The only hard timing guard in this test is a generous 30-second single-enqueue ceiling to catch pathological stalls.
