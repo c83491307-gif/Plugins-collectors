@@ -23,6 +23,9 @@ try{
  assert.equal(response.status,201);
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
+ response=await fetch(url+"/ui/cepx.html");assert.equal(response.status,200);assert.match(await response.text(),/CEPX Control Center/);
+ const {CEPX}=await import("../cepx/index.mjs");const restarted=new CEPX({file:join(dir,"state.json")});assert.equal((await restarted.get("api-project")).tasks.length,1,"state survives engine re-instantiation");
+ const dependent=await restarted.enqueue("api-project",{title:"dependent",dependsOn:[task.task.id]});assert.equal(dependent.created,true);await assert.rejects(()=>restarted.transition("api-project",dependent.task.id,"running"),/DEPENDENCIES_INCOMPLETE/);
  response=await fetch(url+"/api/cepx/context/compress",{method:"POST",headers,body:JSON.stringify({input:{project:"api-project",goal:"persist",rules:["no secrets"]},maxChars:512})});
  assert.equal(response.status,200);assert.ok((await response.json()).checksum);
  console.log("CEPX API tests PASS: bearer auth, project CRUD, task ledger, checkpoint inspection, context compression");
