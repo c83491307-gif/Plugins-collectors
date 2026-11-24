@@ -14,6 +14,11 @@ try{
  await e.createTenant("tenant-b",{name:"Tenant B"});await e.grant("tenant-b","bob","owner");
  await e.createProject("tenant-a","alice","project-a",{name:"A"});
  await e.createProject("tenant-b","bob","project-b",{name:"B"});
+ await e.grantProject("tenant-a","alice","project-a","project-viewer","viewer");
+ assert.equal((await e.getProject("tenant-a","project-viewer","project-a")).id,"project-a");
+ await assert.rejects(()=>e.addTask("tenant-a","project-viewer","project-a",{title:"forbidden"}),/CEPX_FORBIDDEN/);
+ await e.grantProject("tenant-a","alice","project-a","project-editor","editor");
+ assert.ok((await e.addTask("tenant-a","project-editor","project-a",{id:"project-editor-task",title:"allowed editor write"})).id);
  await assert.rejects(()=>e.getProject("tenant-b","alice","project-b"),/CEPX_FORBIDDEN/);
  await assert.rejects(()=>e.createProject("tenant-a","reader","forbidden"),/CEPX_FORBIDDEN/);
  await assert.rejects(()=>e.addTask("tenant-a","reader","project-a",{title:"no"}),/CEPX_FORBIDDEN/);
