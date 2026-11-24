@@ -29,6 +29,7 @@ if(req.url?.startsWith("/api/cepx/")){
  if(a[0]==="projects"&&a.length===3&&a[2]==="handoff"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");await enterprise.getProject(tenantId,userId,a[1]);return json(res,200,await runtime.cepx.handoff(a[1],p));}
  if(a[0]==="context"&&a[1]==="compress"&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,200,runtime.cepx.compress(p.input,p));}
  if(a[0]==="tenants"&&a.length===1&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");enterprise.authorize(state,tenantId,userId,"manage");return json(res,201,await enterprise.createTenant(p.id,p));}
+ if(a[0]==="events"&&a.length===1&&m==="GET"){enterprise.authorize(state,tenantId,userId,"read");const events=(state.events??[]).filter(e=>e.tenantId===tenantId);const limit=Math.min(100,Math.max(1,Number(u.searchParams.get("limit")??25)));return json(res,200,{items:events.slice(-limit).reverse(),total:events.length});}
  if(a[0]==="events"&&a[1]==="verify"&&m==="GET")return json(res,200,await enterprise.verifyEvents(tenantId));
  if(a[0]==="backup"&&m==="GET")return json(res,200,await enterprise.backup(tenantId,userId));
  if(a[0]==="health"&&m==="GET")return json(res,200,enterprise.health());
