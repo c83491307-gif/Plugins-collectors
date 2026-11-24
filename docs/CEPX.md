@@ -129,3 +129,12 @@ The API integration suite covers contract registration, capability-gated enablin
 The main CEPX workspace exposes tenant administration for users with the `manage` permission. `GET /api/cepx/admin` returns the current tenant, its member roles and task/request quotas. `POST /api/cepx/members` grants or updates a tenant member role; `DELETE /api/cepx/members/:userId` revokes membership. `PUT /api/cepx/quota` updates task and rolling requests-per-minute limits. Membership and quota operations require tenant-level manage permission. A tenant cannot demote or revoke its last owner; the API returns HTTP 409 for this conflict. Changes append tenant-scoped audit events. The UI intentionally does not display or modify API bearer tokens or database credentials.
 
 The API suite verifies owner administration, editor grants, quota updates, tenant boundaries, and that viewer principals cannot modify members or quotas.
+
+
+## Encryption key lifecycle hardening
+
+CEPX encryption and key rotation now fail closed with `CEPX_MASTER_KEY_REQUIRED` unless a stable master key is supplied through `CEPX_MASTER_KEY`, `APP_MASTER_KEY`, or the runtime `masterKey` option. Do not rely on the process-random fallback for encryption: it exists only to keep non-cryptographic runtime initialization possible and cannot recover ciphertext after restart.
+
+New ciphertexts use format version 2 and authenticate the tenant ID and key version as AES-256-GCM additional authenticated data. Rotated tenant data-encryption keys are themselves wrapped with the stable master key and tenant/version binding before persistence. Existing legacy base64 keyring entries and ciphertexts without a format marker remain readable for migration compatibility; newly rotated keys use the wrapped representation. Configure and back up the master key independently of the CEPX database. Losing it makes wrapped tenant keys unrecoverable.
+
+The enterprise test suite now checks wrapped-key persistence, successful decryption after recreating the runtime with the same master key, rejection with a wrong master key, and refusal to encrypt when no stable master key is configured.
