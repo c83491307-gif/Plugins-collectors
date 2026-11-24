@@ -16,6 +16,8 @@ export class CEPX {
  }
  async ready(){if(this.store?.migrate)await this.store.migrate();return this;}
  async close(){if(this.store?.close)await this.store.close();}
+ async mutate(fn){return this.#tx(fn);}
+ async _snapshot(){await this.queue;return clone(await this.#read());}
  async #read(){if(this.store)return this.store.read();await mkdir(dirname(this.file),{recursive:true});try{const x=JSON.parse(await readFile(this.file,"utf8"));if(x.schema!==1||!x.projects||typeof x.projects!=="object")throw Error("CEPX_STATE_CORRUPT");return x;}catch(e){if(e.code==="ENOENT")return {schema:1,projects:{}};throw e;}}
  async #write(x){
   const tmp=this.file+"."+process.pid+"."+randomUUID()+".tmp";
