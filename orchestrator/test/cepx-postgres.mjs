@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
-import {mkdtemp,rm} from "node:fs/promises";
+import {mkdtemp,rm,readFile,writeFile} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {Pool} from "pg";
 import {createRuntime,createRuntimeAsync} from "../runtime.mjs";
 import {CEPX} from "../cepx/index.mjs";
+import {CEPXPostgresStore} from "../cepx/postgres-store.mjs";
+import {migrateJsonToPostgres} from "../cepx/migrate-json-to-postgres.mjs";
 
 const databaseUrl=process.env.CEPX_TEST_DATABASE_URL;
 if(!databaseUrl){
@@ -40,10 +42,30 @@ if(!databaseUrl){
   await asyncRuntime.cepx.ensureProject("async-factory",{name:"Async runtime"});
   assert.equal((await asyncRuntime.cepx.get("async-factory")).id,"async-factory");
   await asyncRuntime.close();
-  const jsonEngine=new CEPX({file:join(jsonDir,"legacy.json")});
+  const jsonFile=join(jsonDir,"legacy.json"),backupFile=join(jsonDir,"legacy.backup.json");
+  const jsonEngine=new CEPX({file:jsonFile});
   await jsonEngine.ensureProject("json-still-works",{name:"JSON"});
-  assert.equal((await jsonEngine.get("json-still-works")).name,"JSON");
-  console.log("CEPX PostgreSQL tests PASS: migrations, checksum validation, namespace isolation, independent pools, 50 concurrent writes, global dedupe, transaction rollback, checkpoint restore, async runtime, JSON backend compatibility");
+  await jsonEngine.enqueue("json-still-works",{title:"preserve this task"});
+  await jsonEngine.checkpoint("json-still-works","migration-fixture");
+  const originalBytes=await readFile(jsonFile);
+  const migrationStore=new CEPXPostgresStore({pool:poolA,namespace:namespace+"-migration"});
+  const preview=await migrateJsonToPostgres({file:jsonFile,store:migrationStore,backupPath:backupFile});
+  assert.equal(preview.applied,false,"preview must not write");
+  assert.equal(preview.projects,1);
+  assert.equal(preview.tasks,1);
+  assert.equal((await migrationStore.read()).projects["json-still-works"],undefined,"preview leaves target untouched");
+  const migrated=await migrateJsonToPostgres({file:jsonFile,store:migrationStore,backupPath:backupFile,apply:true});
+  assert.equal(migrated.verified,true);
+  assert.equal(migrated.sourceChecksum,migrated.targetChecksum,"source and target canonical checksums must match");
+  assert.deepEqual(await readFile(backupFile),originalBytes,"backup must be byte-identical");
+  assert.deepEqual(await readFile(jsonFile),originalBytes,"source JSON must remain byte-identical");
+  const rerun=await migrateJsonToPostgres({file:jsonFile,store:migrationStore,backupPath:backupFile,apply:true});
+  assert.equal(rerun.alreadyMigrated,true,"retries must be idempotent");
+  const conflictingStore=new CEPXPostgresStore({pool:poolA,namespace:namespace+"-migration-conflict"});
+  await conflictingStore.transaction(state=>{state.projects.keep={id:"keep",tasks:[],checkpoints:[]};});
+  await assert.rejects(()=>migrateJsonToPostgres({file:jsonFile,store:conflictingStore,backupPath:join(jsonDir,"conflict.backup"),apply:true}),/CEPX_MIGRATION_TARGET_NOT_EMPTY_OR_EQUIVALENT/);
+  assert.equal((await conflictingStore.read()).projects.keep.id,"keep","conflicting destination must not be overwritten");
+  console.log("CEPX PostgreSQL tests PASS: migrations, checksum validation, namespace isolation, independent pools, 50 concurrent writes, global dedupe, transaction rollback, checkpoint restore, async runtime, JSON compatibility, migration preview/apply, byte-identical backup/source, checksum verification, idempotent retry and conflict refusal");
  } finally {
   await poolA.query("DELETE FROM cepx_state WHERE namespace = ANY($1::text[])",[[namespace,namespace+"-isolated",namespace+"-factory"]]).catch(()=>{});
   await Promise.all([poolA.end(),poolB.end()]);
