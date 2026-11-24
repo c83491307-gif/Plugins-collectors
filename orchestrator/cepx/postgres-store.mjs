@@ -63,7 +63,7 @@ export class CEPXPostgresStore {
    await client.query("BEGIN");
    // Transaction-scoped lock serializes every writer, including across hosts.
    await client.query("SELECT pg_advisory_xact_lock($1)",[this.lockKey]);
-   const selected=await client.query("SELECT state FROM cepx_state WHERE id=1 FOR UPDATE");
+   const selected=await client.query("SELECT state FROM cepx_state WHERE namespace=$1 FOR UPDATE",[this.namespace]);
    const state=selected.rowCount?selected.rows[0].state:EMPTY_STATE();
    if(!state||state.schema!==1||!state.projects||typeof state.projects!=="object")throw Error("CEPX_STATE_CORRUPT");
    const value=await fn(state);
