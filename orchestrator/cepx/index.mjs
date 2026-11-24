@@ -14,7 +14,7 @@ export class CEPX {
   this.file=file;this.store=store;this.clock=clock;this.queue=Promise.resolve();this.tools=new Map();this.health=new Map();
   this.lockDir=file+".lock";this.lockTimeoutMs=lockTimeoutMs;this.lockLeaseMs=lockLeaseMs;this.lockRetryMs=lockRetryMs;this.host=hostname();
  }
- async ready(){if(this.store?.migrate)await this.store.migrate();return this;}
+ async ready(){if(this.store?.migrate)await this.store.migrate();if(this.enterprise?.migrateSchema)await this.enterprise.migrateSchema();return this;}
  async close(){if(this.store?.close)await this.store.close();}
  async mutate(fn){return this.#tx(fn);}
  async _snapshot(){await this.queue;return clone(await this.#read());}
