@@ -14,7 +14,23 @@ jobs:
   matrix:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      CEPX_TEST_DATABASE_URL: postgres://cepx:cepx-test-password@localhost:5432/cepx_test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cepx
+          POSTGRES_PASSWORD: cepx-test-password
+          POSTGRES_DB: cepx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cepx -d cepx_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -32,6 +48,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
           cache-dependency-path: orchestrator/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - name: Version
         run: node --version && npm --version
       - name: Syntax verification
