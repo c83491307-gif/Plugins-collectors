@@ -26,7 +26,7 @@ try{
  response=await fetch(url+"/api/cepx/retries/process",{method:"POST",headers,body:JSON.stringify({at:failedTask.deadLetter.nextAt+1000})});assert.equal(response.status,200);assert.ok((await response.json()).processed.some(x=>x.deadLetterId===failedTask.deadLetter.id));
  response=await fetch(url+"/api/cepx/projects/api-project/checkpoint",{method:"POST",headers,body:JSON.stringify({reason:"api test"})});
  assert.equal(response.status,201,await response.clone().text());
- response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.equal(eventData.total,2,"project and task events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.created");
+ response=await fetch(url+"/api/cepx/events",{headers});assert.equal(response.status,200);const eventData=await response.json();assert.ok(eventData.total>=6,"project, task, failure, DLQ and retry events are exposed tenant-scoped");assert.equal(eventData.items[0].type,"task.retry_scheduled");
  response=await fetch(url+"/api/cepx/projects/api-project",{headers});
  assert.equal(response.status,200);const data=await response.json();assert.equal(data.project.tasks.length,1);assert.equal(data.recovery.length,1);assert.equal(data.recovery[0].valid,true);
  response=await fetch(url+"/api/cepx/admin",{headers});assert.equal(response.status,200);const admin=await response.json();assert.equal(admin.tenant.id,"default");assert.ok(admin.members.some(x=>x.role==="owner"));
