@@ -14,13 +14,13 @@ try{
  let t=performance.now();await c.ensureProject("bench",{name:"CEPX performance benchmark"});const createProjectMs=+(performance.now()-t).toFixed(2);
  const enqueue=await sample(i=>c.enqueue("bench",{title:"benchmark-task-"+i,description:"bounded synthetic task payload ".repeat(3)}),count);
  const p=await c.get("bench");assert.equal(p.tasks.length,count);
- const read=await sample(()=>c.get("bench"),30);
+ await c.ensureProject("bulk",{name:"CEPX bulk benchmark"});t=performance.now();const bulkResult=await c.enqueueMany("bulk",Array.from({length:count},(_,i)=>({title:"bulk-task-"+i,description:"bounded synthetic task payload ".repeat(3)})));const bulkEnqueueMs=+(performance.now()-t).toFixed(2);assert.equal(bulkResult.filter(x=>x.created).length,count);assert.equal((await c.get("bulk")).tasks.length,count);\n const read=await sample(()=>c.get("bench"),30);
  const list=await sample(()=>c.list(),30);
  const compression=await sample(i=>c.compress({project:"bench",goal:"benchmark",rules:["preserve state","avoid duplicate work"],decisions:Array.from({length:80},(_,n)=>"decision-"+n+"-"+i),blockers:["none"],nextActions:Array.from({length:80},(_,n)=>"action-"+n),completed:Array.from({length:80},(_,n)=>"completed-"+n)},{maxChars:6000}),30);
  t=performance.now();const cp=await c.checkpoint("bench","perf");const checkpointMs=+(performance.now()-t).toFixed(2);assert.ok(cp.id);
  const bytes=(await stat(file)).size;
  const state=JSON.parse(await readFile(file,"utf8"));assert.equal(state.projects.bench.tasks.length,count);
- const result={node:process.version,tasks:count,createProjectMs,enqueue,read,list,compression,checkpointMs,stateBytes:bytes,eventLoopDelayMs:{mean:+(histogram.mean/1e6).toFixed(2),p95:+(histogram.percentile(95)/1e6).toFixed(2),max:+(histogram.max/1e6).toFixed(2)},heapUsedBytes:process.memoryUsage().heapUsed};
+ const result={node:process.version,tasks:count,createProjectMs,enqueue,bulkEnqueueMs,bulkTasksPerSecond:+(count/(bulkEnqueueMs/1000)).toFixed(1),read,list,compression,checkpointMs,stateBytes:bytes,eventLoopDelayMs:{mean:+(histogram.mean/1e6).toFixed(2),p95:+(histogram.percentile(95)/1e6).toFixed(2),max:+(histogram.max/1e6).toFixed(2)},heapUsedBytes:process.memoryUsage().heapUsed};
  assert.ok(Number.isFinite(enqueue.p95)&&Number.isFinite(read.p95)&&Number.isFinite(compression.p95));
  assert.ok(enqueue.max<30000,"single enqueue latency exceeded 30s guardrail");
  console.log("CEPX_PERF_RESULT "+JSON.stringify(result));
