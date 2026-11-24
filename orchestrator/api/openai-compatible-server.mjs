@@ -16,6 +16,7 @@ if(req.url?.startsWith("/api/cepx/")){
  const {tenantId,userId}=principal, enterprise=runtime.cepx.enterprise;
  let state=await enterprise.snapshot();
  if(tenantId==="default"&&!state.tenants?.[tenantId]){await enterprise.createTenant(tenantId,{name:"Default tenant"});await enterprise.grant(tenantId,userId,"owner");}
+ await enterprise.consumeRequest(tenantId,userId);
  const u=new URL(req.url,"http://localhost"), a=u.pathname.split("/").filter(Boolean).slice(2).map(decodeURIComponent), m=req.method??"GET";
  if(a[0]==="projects"&&a.length===1&&m==="GET")return json(res,200,await enterprise.listProjects(tenantId,userId,{cursor:u.searchParams.get("cursor"),limit:Number(u.searchParams.get("limit")??50),search:u.searchParams.get("search")??"",sort:u.searchParams.get("sort")??"updatedAt",direction:u.searchParams.get("direction")??"desc"}));
  if(a[0]==="projects"&&a.length===1&&m==="POST"){const p=JSON.parse(await readBody(req)||"{}");return json(res,201,{project:await enterprise.createProject(tenantId,userId,p.id,p)});}
