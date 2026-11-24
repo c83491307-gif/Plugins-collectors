@@ -17,7 +17,7 @@ export class CEPXEnterprise {
    const v=s.schemaVersion??1;
    assert(v<=2,"CEPX_SCHEMA_FUTURE_VERSION");
    if(v<2){
-    s.tenants??={};s.memberships??={};s.events??=[];s.deadLetters??=[];s.leases??={};s.quotas??={};s.archives??={};s.pluginContracts??={};s.keyring??={active:"k1",keys:{k1:this.masterKey.toString("base64")}};s.schemaVersion=2;
+    s.tenants??={};s.memberships??={};s.events??=[];s.deadLetters??=[];s.leases??={};s.quotas??={};s.archives??={};s.pluginContracts??={};s.keyring??={activeVersion:1,versions:{1:createHmac("sha256",this.masterKey).update("cepx-default-key-v1").digest("base64")}};s.schemaVersion=2;
    }
    return {from:v,to:s.schemaVersion,changed:v!==s.schemaVersion};
   });
