@@ -44,3 +44,5 @@ jobs:
         run: npm run smoke
       - name: Stress/account verification
         run: npm run verify:stress
+      - name: CEPX continuity engine tests
+        run: npm run cepx
