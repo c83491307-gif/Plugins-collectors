@@ -23,7 +23,10 @@
     "account-failover": "node test/account-failover.mjs",
     "provider-stack": "npm run provider-runtime && npm run provider-sync-rotation && npm run account-failover",
     "verify:all": "npm run verify:syntax && npm run smoke && npm run provider-stack && npm run verify:targeted && npm run verify:stress && npm run cepx",
-    "cepx": "node test/cepx.mjs && node test/cepx-api.mjs && node test/cepx-distributed.mjs && node test/cepx-performance.mjs && node test/cepx-scale.mjs",
+    "cepx": "node test/cepx.mjs && node test/cepx-api.mjs && node test/cepx-distributed.mjs && node test/cepx-performance.mjs && node test/cepx-scale.mjs && node test/cepx-postgres.mjs",
     "cepx-scale-100k": "node --input-type=module -e \"process.env.CEPX_SCALE_TASKS='100000'; await import('./test/cepx-scale.mjs')\""
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }
