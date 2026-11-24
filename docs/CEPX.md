@@ -53,3 +53,22 @@ The PostgreSQL adapter uses versioned migrations recorded in `cepx_schema_migrat
 Install dependencies with `npm install`. To create a PostgreSQL runtime, set `CEPX_DATABASE_URL` and call `createRuntimeAsync()`, or pass `{cepx:{backend:"postgres",databaseUrl:"...",namespace:"..."}}`. The synchronous `createRuntime()` remains compatible with existing JSON deployments; it also accepts an already-created `pg.Pool` as `{cepx:{backend:"postgres",pool,namespace}}`. Use a distinct namespace for each independent CEPX installation sharing one database. Call `runtime.close()` for runtimes created by `createRuntimeAsync()`.
 
 CI provisions PostgreSQL 16 and runs the adapter integration suite in both Node 20 and Node 22. It validates migrations and checksum tracking, namespace isolation, independent connection pools, concurrent writes and global idempotency, transaction rollback, checkpoint restore, async runtime construction, and continued JSON backend operation. PostgreSQL availability is required for this integration suite; local `npm run cepx` reports a clear skip when `CEPX_TEST_DATABASE_URL` is unset.
+
+
+## Safe JSON → PostgreSQL migration
+
+Use `node orchestrator/cepx/migrate-json-to-postgres.mjs --file ./data/cepx/projects.json --namespace production` to preview a migration. Preview is the default and never writes to PostgreSQL. Supply `--database-url` or set `CEPX_DATABASE_URL`; the CLI does not fall back to a generic `DATABASE_URL`.
+
+Apply only after reviewing the preview by adding `--apply`. The tool validates the CEPX schema and project/task identities, computes a canonical SHA-256 checksum, and refuses to overwrite a destination namespace that is neither empty nor already byte-semantically equivalent. The first apply creates an exclusive byte-identical backup beside the source (or at `--backup <path>`), imports the full state in one PostgreSQL transaction, reads it back, and compares canonical checksums. It then re-reads the source to detect concurrent edits. The original JSON file is never modified or deleted.
+
+An interrupted run is safe to retry: an already equivalent destination is reported as migrated and verified without re-importing or replacing the backup. A conflicting destination fails closed. The tool intentionally does not automatically switch runtime traffic or remove the JSON file; cutover and retention are separate operator decisions.
+
+Example:
+
+```sh
+cd orchestrator
+node cepx/migrate-json-to-postgres.mjs --file ./data/cepx/projects.json --namespace main
+node cepx/migrate-json-to-postgres.mjs --file ./data/cepx/projects.json --namespace main --apply
+```
+
+The PostgreSQL integration suite verifies preview non-mutation, exact backup/source preservation, source/target checksum equality, idempotent retries, and refusal to overwrite a populated conflicting namespace under Node 20 and Node 22.
