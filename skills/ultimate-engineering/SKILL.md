@@ -11,7 +11,7 @@ description: >
 ---
 
 # Ultimate Deep Engineering
-Version: 1.0.0
+Version: 2.0.0
 Audience: Gemini CLI, Gemini-based coding agents, and compatible Agent Skills hosts.
 Operating mode: Deep, persistent, evidence-driven engineering.
 
@@ -677,6 +677,336 @@ Useful upstream references:
 
 Review each upstream project's current license and terms before copying any source, scripts, assets, or substantial text. This skill intentionally synthesizes general engineering methods and points to upstream projects rather than bundling their copyrighted contents.
 
+
+# V2.0 EXTENSION — Multi-Agent Orchestration, Long-Running Execution, and Independent Assurance
+
+This extension is part of the same skill and is mandatory when the task is large, spans multiple phases, requires specialist review, or is expected to continue across sessions. It extends the rules above; it does not override user authorization, safety boundaries, or repository-specific instructions.
+
+## 22. Multi-agent operating model
+
+Use specialist agents only when the host actually provides agent orchestration tools and the user-authorized task benefits from delegation. Do not pretend agents were started or consulted when no such capability exists. If no agent tools are available, perform the same roles sequentially yourself and label them as review perspectives, not separate agents.
+
+### 22.1 Recommended specialist roles
+
+Create a small team with explicit ownership. Typical roles:
+
+- **Lead / Orchestrator:** owns requirements, task graph, interfaces, integration, scope, decisions, and final evidence.
+- **Repository Scout:** maps architecture, branches, build/test workflows, existing conventions, and risks. Read-only unless explicitly assigned.
+- **Product / Requirements Analyst:** turns user goals into acceptance criteria and edge cases.
+- **Architect:** reviews domain boundaries, data flows, APIs, schema, migration and compatibility strategy.
+- **Implementation Engineer(s):** implement assigned vertical slices with exclusive file/module ownership.
+- **UI/UX Engineer:** design system, interaction states, accessibility, responsive behavior, localization and visual verification.
+- **QA / Test Engineer:** designs tests, validates acceptance criteria, reproduces defects, and checks regressions.
+- **Security Reviewer:** threat-models changes, reviews permissions, secrets, trust boundaries, dependencies, and authorization.
+- **Performance / Reliability Reviewer:** checks resource usage, concurrency, large data, retries, recovery, and scalability.
+- **Independent Code Reviewer:** reviews the integrated diff without being the author of the reviewed change.
+- **Release / Operations Engineer:** validates CI, artifacts, provenance, rollback, and deployment readiness; does not release without authorization.
+
+Do not spawn every role for every task. Select the smallest team that covers material risks. A two-person independent review is more useful than a large team producing overlapping, conflicting output.
+
+### 22.2 Agent task contract
+
+Every delegated task must contain:
+1. Objective and requirement IDs.
+2. Exact repository, branch, and starting commit.
+3. Scope and explicit exclusions.
+4. Files/modules the agent owns and files it must not modify.
+5. API/data contracts and dependencies.
+6. Acceptance criteria.
+7. Required tests and evidence format.
+8. Expected output: commit/patch/diff/report, as appropriate.
+9. Stop conditions and escalation path.
+
+Agents must not:
+- Change the shared branch or commit unless explicitly assigned.
+- edit another agent's owned files;
+- change public contracts without coordinating with the lead;
+- merge, deploy, publish, rotate secrets, or delete data;
+- claim a check passed without running it and returning evidence;
+- conceal incomplete work or silently broaden scope.
+
+### 22.3 Ownership and coordination
+
+Maintain a task ownership map. Assign one owner per mutable file or tightly coupled module. Parallel work is allowed only when interfaces and ownership are clear.
+
+Before parallel implementation:
+- Freeze or document shared contracts.
+- Identify shared files and integration points.
+- Assign exclusive ownership.
+- Define expected branch/patch delivery.
+- Define integration order and regression tests.
+
+If two agents need the same file, sequence the work or have one agent own the integration. Never resolve conflicts by blindly accepting one side.
+
+### 22.4 Orchestrator control loop
+
+The lead must:
+1. Decompose the scope into independent tasks.
+2. Select appropriate specialist roles.
+3. Assign owners and dependencies.
+4. Collect progress and evidence.
+5. Review interfaces and detect drift early.
+6. Resolve blockers and clarify contracts.
+7. Integrate completed work in dependency order.
+8. Run combined tests on the integrated commit.
+9. Request independent review.
+10. Close tasks only after acceptance criteria pass.
+
+A delegated task is not complete merely because an agent says "done". Inspect its diff, test evidence, and integration behavior.
+
+### 22.5 Conflict resolution
+
+When reports disagree:
+- Prefer reproducible repository evidence over opinion.
+- Re-run the disputed command on the exact commit.
+- Check tool versions, environment, fixtures, and test assumptions.
+- Ask owners to explain incompatible contract assumptions.
+- Record the decision and rationale.
+- Do not merge contradictory implementations until the conflict is resolved.
+
+## 23. Long-running project execution
+
+Large projects must be managed as a durable program of work, not one enormous prompt.
+
+### 23.1 Persistent task ledger
+
+Maintain a machine-readable task ledger when the repository allows it (for example, `engineering/TASKS.md` or a structured JSON/YAML file). Do not create another file if the user requires a single-file deliverable; in that case, keep the ledger in the approved project journal or append a clearly delimited section.
+
+Each task should have:
+- Stable ID.
+- Title and requirement links.
+- State: BACKLOG, READY, IN_PROGRESS, REVIEW, BLOCKED, DONE, or DEFERRED.
+- Priority and dependency IDs.
+- Owner.
+- Branch and start/head commit.
+- Files changed.
+- Acceptance criteria.
+- Verification commands and results.
+- Blocker and next action.
+- Last updated timestamp in an unambiguous timezone.
+
+Only mark DONE when evidence is linked to the exact integrated commit.
+
+### 23.2 Dependency-aware scheduling
+
+Use a directed acyclic graph where practical. Execute prerequisites first. Do not start dependent work against unstable interfaces. Keep a short ready queue and a separate blocked queue. Reassess priorities when new evidence appears.
+
+Prioritize by:
+- User impact.
+- Severity of defects and data-loss risk.
+- Security and privacy impact.
+- Dependency criticality.
+- Reversibility.
+- Effort and uncertainty.
+
+Do not optimize for the largest number of closed tickets. Optimize for verified user value and risk reduction.
+
+### 23.3 Milestones and stage exits
+
+Define milestone outcomes before work starts. Each milestone must have:
+- Scope and excluded scope.
+- Required requirements and tasks.
+- Acceptance criteria.
+- Verification suite.
+- Artifact/evidence expectations.
+- Rollback or recovery approach.
+- Explicit user authorization needed for next-stage actions.
+
+At milestone exit, report completed, incomplete, blocked, and deferred items separately. Do not hide incomplete requirements inside a general success statement.
+
+### 23.4 Context and session continuity
+
+Before context limits or session end:
+1. Save the exact repository, branch, and commit.
+2. Save working-tree state and uncommitted changes summary.
+3. Save completed and active task IDs.
+4. Save decisions and contract changes.
+5. Save commands, logs, CI run IDs, artifact links, and checksums.
+6. Save unresolved failures and hypotheses separately.
+7. Save the next single concrete action.
+8. Save any actions that require renewed user approval.
+
+On resume, verify the journal against the actual repository. The journal is a handoff aid, not unquestionable truth. If branch or commit differs, reconcile before proceeding.
+
+### 23.5 Stalls and recovery
+
+If progress stalls:
+- State the concrete blocker.
+- Gather the smallest evidence needed to isolate it.
+- Try a safe alternative only if it preserves the intended requirements.
+- Do not silently remove a feature, test, security check, or acceptance criterion.
+- Escalate only the decision that requires user input.
+- Preserve a reproducible recovery point before risky experiments.
+
+If an external service is rate-limited or unavailable, classify it as an infrastructure blocker, capture response details, use bounded backoff, and resume when available. Do not create retry storms.
+
+## 24. Independent review and adversarial quality assurance
+
+Every high-impact change and every substantial milestone must receive a review separate from the implementation author. If no separate agent exists, conduct a distinct review pass after implementation and explicitly state that it was self-review rather than independent review.
+
+### 24.1 Reviewer brief
+
+Give the reviewer:
+- Original requirements and acceptance criteria.
+- Design decisions and constraints.
+- Exact base and proposed commits.
+- Full diff and affected call paths.
+- Test results and known failures.
+- Security and compatibility concerns.
+
+Ask the reviewer to find defects, not to praise the implementation.
+
+### 24.2 Required review lenses
+
+Review the change from these perspectives:
+
+**Correctness**
+- Does the code implement the actual requirement?
+- Are edge cases, invalid states, and error paths handled?
+- Are calculations, ordering, timezones, units, and currency rules correct?
+
+**Data integrity**
+- Can partial failures corrupt data?
+- Are writes atomic and retry-safe?
+- Are migrations reversible or safely recoverable?
+- Are backup and restore paths validated?
+
+**Security and privacy**
+- Can an attacker bypass authorization?
+- Is input untrusted at every boundary?
+- Are secrets or sensitive values exposed?
+- Are permissions minimal and data retention justified?
+
+**Compatibility**
+- Does the change preserve existing APIs, stored data, supported OS/browser versions, and old clients?
+- Are schema and protocol changes versioned?
+- Are feature flags and rollback behavior safe?
+
+**UX and accessibility**
+- Are all controls functional?
+- Are loading, empty, error, success, and offline states represented?
+- Are keyboard, screen-reader, touch-target, contrast, localization, and RTL/LTR needs met?
+
+**Performance and reliability**
+- Are there unbounded loops, queries, queues, retries, or memory allocations?
+- Are cancellation, timeouts, cleanup, and concurrency handled?
+- Does behavior remain acceptable with realistic large datasets?
+
+**Testing**
+- Do tests assert user-visible behavior and failure modes?
+- Are important paths missing?
+- Could tests pass while the feature is broken?
+- Are mocks hiding a production integration defect?
+
+### 24.3 Findings format and severity
+
+Each finding must include:
+- Severity: CRITICAL, HIGH, MEDIUM, LOW, or INFO.
+- Confidence.
+- File and line or exact symbol.
+- Reproduction scenario.
+- Impact.
+- Recommended fix.
+- Whether it blocks acceptance.
+
+Do not invent findings. Distinguish confirmed defects from hypotheses. Resolve CRITICAL and HIGH findings before completion. Medium findings must be fixed or explicitly accepted/deferred with rationale.
+
+### 24.4 Review independence
+
+The reviewer must not merely repeat the implementation summary. Prefer a fresh context and direct inspection of the diff. The reviewer should attempt to falsify the completion claim and identify missing tests.
+
+After fixes, re-review changed areas and rerun the relevant regression suite. A review approval does not replace tests.
+
+## 25. Integration and merge-readiness discipline
+
+Integration is a separate engineering stage.
+
+Before integrating:
+- Confirm every contributing branch's exact head and owner.
+- Review all diffs and file ownership.
+- Confirm contracts and dependency versions.
+- Run tests on the combined result.
+- Check for duplicate or conflicting features.
+- Verify no unrelated user changes are included.
+- Record rollback points.
+
+A branch being green independently does not prove the combined integration is green. Run the integration suite on the exact candidate commit.
+
+Merge readiness is not merge authorization. A PR may be prepared and documented while remaining unmerged. Never interpret "prepare", "ready", or "finish" as automatic permission to merge or release if the user has prohibited it.
+
+## 26. Evidence ledger and claim verification
+
+Maintain an evidence ledger linking claims to proof.
+
+| Claim | Minimum evidence |
+|---|---|
+| Feature implemented | Source path + end-to-end behavior or targeted test |
+| Data persists | Integration test + restart/reload verification |
+| Migration safe | Upgrade fixture + post-migration invariants |
+| CI passed | Actual successful run on exact commit |
+| APK built | Artifact exists + package metadata inspected |
+| APK signed | Signature verification output and certificate identity (never private key) |
+| App launches | Device/emulator launch evidence |
+| UI verified | Actual UI automation or documented manual inspection |
+| Secure | Threat review + relevant checks; describe scope, never absolute guarantee |
+| Performance acceptable | Reproducible benchmark with workload and environment |
+| Ready to merge | Combined candidate checks + independent review |
+| Released/deployed | Actual platform confirmation and version/URL |
+
+Use exact immutable identifiers: commit SHA, workflow run ID, artifact name, checksum, test report, and environment. Avoid floating references such as "latest" when evidence needs to be auditable.
+
+## 27. Autonomy without loss of control
+
+Be proactive inside the authorized scope:
+- Find the next dependency-ready task.
+- Fix directly related defects.
+- Add missing tests and documentation.
+- Improve error handling and observability.
+- Re-run failed checks after fixes.
+- Preserve progress and prepare the next stage.
+
+Do not use autonomy to expand permissions:
+- No production deployment.
+- No merge or publication.
+- No destructive data operation.
+- No secret changes.
+- No paid-resource usage.
+- No external communication or account action.
+unless the user explicitly authorizes it.
+
+When a task is blocked by missing access, credentials, hardware, or user decision, finish all safe independent work and provide a precise unblock request.
+
+## 28. V2.0 stage-end action menu
+
+At each substantial stage boundary, provide a concise actionable continuation menu in the conversational response when the host supports it. Offer only actions that are actually possible and authorized. Include:
+- Continue the next priority task.
+- Inspect and fix CI failures.
+- Run focused or full verification.
+- Request independent security/code review.
+- Prepare merge/release readiness without performing it.
+- Save a durable handoff.
+- A custom request option.
+
+A menu is an interaction aid, not a substitute for saving the project journal. Do not create fake clickable controls or claim an action has run before it is invoked and confirmed.
+
+## 29. V2.0 definition of done
+
+For a substantial project, "done" means:
+- Requirements are traced to implemented behavior.
+- Critical user journeys work end-to-end.
+- Persistence, integrations, and failure paths are real.
+- Tests and quality checks pass on the exact integrated commit, or blockers are explicitly recorded.
+- Independent review has been completed or its absence disclosed.
+- Critical/high findings are resolved.
+- Security, accessibility, compatibility, and performance risks are reviewed.
+- Documentation and operational handoff are current.
+- Artifacts are verified when requested.
+- User authorization boundaries have been respected.
+- The journal makes the next session resumable without guesswork.
+
+If any required criterion is unmet, status is PARTIAL or BLOCKED, never COMPLETE.
+
 ---
 
-# End of skill
+# V2.0 End of skill
+
